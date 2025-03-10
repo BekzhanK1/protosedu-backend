@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
 
         body {
             font-family: 'Montserrat', Arial, Helvetica, sans-serif;
@@ -20,35 +20,81 @@
             background-color: #fff;
             border: 1px solid #ddd;
             border-radius: 8px;
-            padding: 20px;
+            padding: 30px;
             max-width: 600px;
             margin: 0 auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
         p {
             font-size: 16px;
-            line-height: 1.5;
+            line-height: 1.6;
+        }
+
+        h1 {
+            color: #00639E;
+            text-align: center;
         }
 
         .footer {
             text-align: center;
             margin-top: 20px;
             font-size: 14px;
-            color: #999;
+            color: #777;
+        }
+
+        a {
+            display: inline-block;
+            background-color: #00639E;
+            color: white;
+            padding: 10px 20px;
+            font-weight: bold;
+            font-size: large;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        a:hover {
+            background-color: #004a74;
+        }
+
+        a:visited {
+            color: white;
+            background-color: #00639E;
+            /* Отключаем фиолетовый цвет для посещённой ссылки */
+        }
+
+        .stats {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 20px;
         }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <img src="https://i.postimg.cc/7Yk7ZJgr/logo-blue.png" alt="logo" style="width: 200px; height: 55px;">
-        <h1>Здравстуйте {{ first_name }} {{ last_name }}!</h1>
-        <p>Ваш ежедневный отчет от Vunderkids:</p>
-        <p>У вас сейчас кубков: <strong>{{ current_cups }}</strong> Ваш уровень: <strong>{{ level }}</strong></p>
+        <div class="logo">
+            <img src="https://i.postimg.cc/htrXDhnc/logo-blue.png" alt="logo" style="width: 200px; height: 55px;">
+        </div>
+        <h1>Здравствуйте, {{ first_name }} {{ last_name }}!</h1>
+        <p>Ваш ежедневный отчет от protosedu.kz:</p>
+        <div class="stats">
+            <p>У вас сейчас кубков: <strong>{{ current_cups }}</strong></p>
+            <p>Ваш уровень: <strong>{{ level }}</strong></p>
+        </div>
+        <p style="text-align: center; margin: 30px 0;">
+            <a href="{{ dashboard_url }}">Перейти в личный кабинет</a>
+        </p>
         <p>Продолжайте в том же духе и никогда не переставайте стараться дальше!</p>
         <div class="footer">
             <p>Всего доброго!</p>
-            <p>Команда Vunderkids</p>
+            <p>Команда protosedu.kz</p>
         </div>
     </div>
 </body>

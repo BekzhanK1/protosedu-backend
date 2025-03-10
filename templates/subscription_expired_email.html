@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Subscription Expired</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
 
         body {
             font-family: 'Montserrat', Arial, Helvetica, sans-serif;
@@ -21,7 +21,7 @@
             margin: 20px auto;
             background-color: #ffffff;
             border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             overflow: hidden;
         }
 
@@ -29,45 +29,70 @@
             background-color: #00639E;
             color: #ffffff;
             padding: 20px;
-            display: flex;
-            flex-direction: column;
+            text-align: center;
+        }
+
+        .header img {
+            margin-bottom: 10px;
         }
 
         .header h1 {
-            margin-top: 20px;
-            text-align: center;
-
+            margin: 0;
         }
 
         .content {
-            padding: 20px;
+            padding: 30px;
+            text-align: center;
         }
 
         .content h2 {
             color: #333333;
+            margin-bottom: 10px;
         }
 
         .content p {
             line-height: 1.6;
             color: #666666;
+            margin-bottom: 20px;
         }
 
         .content a {
             display: inline-block;
             margin-top: 20px;
-            padding: 10px 20px;
+            padding: 12px 24px;
             background-color: #00639E;
             color: #ffffff;
             text-decoration: none;
             border-radius: 5px;
+            transition: background-color 0.3s ease;
+            font-weight: bold;
+        }
+
+        .content a:hover {
+            background-color: #004a74;
+        }
+
+        .content a:visited {
+            color: #ffffff;
+            background-color: #00639E;
+            /* Отключаем фиолетовый цвет для посещённой ссылки */
         }
 
         .footer {
             background-color: #f4f4f4;
             color: #777777;
             text-align: center;
-            padding: 10px 20px;
+            padding: 15px 20px;
             font-size: 12px;
+        }
+
+        .footer a {
+            color: #00639E;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -75,26 +100,22 @@
 <body>
     <div class="container">
         <div class="header">
-            <img src="https://i.postimg.cc/0QT3h0M4/logo-white.png" alt="logo" width="200px" height="55px">
+            <img src="https://i.postimg.cc/htrXDhnc/logo-blue.png" alt="logo" width="200px" height="55px">
             <h1>Ваш тариф подошел к концу</h1>
         </div>
         <div class="content">
             <h2>Уважаемый(ая) {{ user.first_name }},</h2>
-            <!-- <p>We hope this message finds you well. We wanted to inform you that your subscription has expired. As a
-                result, you no longer have access to premium features and content.</p> -->
-            <p>Мы надеемся, что вы в порядке. Мы хотим сообщить вам, что ваш тариф истек. Теперь, доступ к
+            <p>Мы надеемся, что вы в порядке. Мы хотим сообщить вам, что ваш тариф истек. Теперь доступ к
                 премиум-функциям и контенту ограничен.</p>
-            <!-- <p>We highly value you as a customer and would love to have you back. Renew your subscription to continue
-                enjoying our premium services and stay connected with tahe latest updates and exclusive content.</p> -->
-            <p>Мы вас очень ценим как клиента, и хотели бы, чтобы вы оставались с нами! Обновите ваш тариф для того
-                чтобы дальше пользоваться премиум-функциями и быть в курсе о самых новых и эксклюзивных контентах.</p>
+            <p>Мы вас очень ценим как клиента и хотели бы, чтобы вы оставались с нами! Обновите ваш тариф, чтобы
+                продолжить пользоваться премиум-функциями и быть в курсе самых новых и эксклюзивных контентов.</p>
             <p style="text-align: center;">
-                <a href="https://vunderkids.kz">Обновить Тариф</a>
+                <a href="https://protosedu.kz/subscription-details">Обновить Тариф</a>
             </p>
         </div>
         <div class="footer">
-            <p>Если у вас возникли какие нибудь вопросы, можете написать <a href="mailto:bkimadieff@gmail.com">на нашу
-                    техническю поддержку</a>.</p>
+            <p>Если у вас возникли какие-либо вопросы, можете написать <a href="mailto:bkimadieff@gmail.com">нашу
+                    техническую поддержку</a>.</p>
             <p>Спасибо за ваш ценный вклад в наше сообщество!</p>
         </div>
     </div>
