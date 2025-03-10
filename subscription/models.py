@@ -13,6 +13,8 @@ DURATION_CHOICES = [
     ("annual", "Annual"),
 ]
 
+MAX_FREE_TRIAL_QUESTIONS = 10
+
 
 class Plan(models.Model):
     price = models.DecimalField(max_digits=7, decimal_places=0, blank=True, null=True)
@@ -57,6 +59,8 @@ class Subscription(models.Model):
 
     @property
     def is_active(self):
+        if self.is_free_trial():
+            return self.is_free_trial_active()
         return self.end_date is not None and timezone.now() < self.end_date
 
     def is_free_trial_active(self):
@@ -66,7 +70,7 @@ class Subscription(models.Model):
         if not children.exists():
             return True
         for child in children:
-            if child.completed_tasks.count() > 9:
+            if child.answers.count() >= MAX_FREE_TRIAL_QUESTIONS:
                 return False
         return True
 

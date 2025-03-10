@@ -40,18 +40,22 @@ class CourseViewSet(viewsets.ModelViewSet):
         user = request.user
         child_id = request.query_params.get("child_id", None)
 
+        print(child_id)
+
         if user.is_student:
             student = get_object_or_404(Student, user=user)
+            print(f"Student: {student}")
             queryset = Course.objects.filter(
-                grade__in=[student.grade, -1],
-                course_type="regular",
+                grade=student.grade,
+                # course_type="regular",
                 language=student.language,
             )
         elif user.is_parent and child_id:
             child = get_object_or_404(Child, parent=user.parent, pk=child_id)
+            print(f"Child: {child}")
             queryset = Course.objects.filter(
-                grade__in=[child.grade, -1],
-                course_type="regular",
+                grade=child.grade,
+                # course_type="regular",
                 language=child.language,
             )
         else:
