@@ -10,15 +10,15 @@ services:
     image: postgres:15
     restart: always
     environment:
-      POSTGRES_USER: protosedu
-      POSTGRES_PASSWORD: 1234
-      POSTGRES_DB: protosedu_db
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - vunderkids_net
     ports:
-      - "5432:5432"
+      - "${DATABASE_PORT}:5432"
 
   web:
     build: .
@@ -36,8 +36,8 @@ services:
     ports:
       - "9000:8000"
     environment:
-      CELERY_BROKER_URL: redis://redis:6379/0
-      DATABASE_URL: postgres://vunderkids:securepassword@db:5432/vunderkids_db
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      DATABASE_URL: postgres://${DATABASE_USER}:${DATABASE_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}
     depends_on:
       - redis
       - db
@@ -47,12 +47,11 @@ services:
   celery_worker:
     build: .
     command: celery -A vunderkids worker --loglevel=info -c 4
-
     volumes:
       - .:/django
     environment:
-      CELERY_BROKER_URL: redis://redis:6379/0
-      DATABASE_URL: postgres://vunderkids:securepassword@db:5432/vunderkids_db
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      DATABASE_URL: postgres://${DATABASE_USER}:${DATABASE_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}
     depends_on:
       - web
       - redis
@@ -66,8 +65,8 @@ services:
     volumes:
       - .:/django
     environment:
-      CELERY_BROKER_URL: redis://redis:6379/0
-      DATABASE_URL: postgres://vunderkids:securepassword@db:5432/vunderkids_db
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      DATABASE_URL: postgres://${DATABASE_USER}:${DATABASE_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}
     depends_on:
       - web
       - redis

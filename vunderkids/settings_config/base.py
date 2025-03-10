@@ -190,6 +190,15 @@ DATABASE_TYPE = os.getenv("DATABASE_TYPE")
 STAGE = os.getenv("STAGE")
 
 
+print(f"DATABASE_TYPE: {DATABASE_TYPE}")
+print(f"STAGE: {STAGE}")
+print(f"DATABASE_NAME: {DATABASE_NAME}")
+print(f"DATABASE_USER: {DATABASE_USER}")
+print(f"DATABASE_PASSWORD: {DATABASE_PASSWORD}")
+print(f"DATABASE_HOST: {DATABASE_HOST}")
+print(f"DATABASE_PORT: {DATABASE_PORT}")
+
+
 if DATABASE_TYPE == "POSTGRES" or STAGE == "PROD":
     DATABASES = {
         "default": {
@@ -198,7 +207,7 @@ if DATABASE_TYPE == "POSTGRES" or STAGE == "PROD":
             "USER": DATABASE_USER,
             "PASSWORD": DATABASE_PASSWORD,
             "HOST": DATABASE_HOST,
-            "PORT": DATABASE_PORT,
+            "PORT": 5432,
         }
     }
     print("POSTGRES IS RUNNING")
