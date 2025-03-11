@@ -30,6 +30,8 @@ from .serializers import (
     TaskSummarySerializer,
 )
 
+GAME_COST_CONST = 20
+
 
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
@@ -452,7 +454,7 @@ class PlayGameView(APIView):
     def get(self, request):
         user = request.user
         child_id = request.query_params.get("child_id", None)
-        game_cost = 20
+        game_cost = GAME_COST_CONST
 
         if user.is_student:
             return self.deduct_stars(user.student, game_cost)
