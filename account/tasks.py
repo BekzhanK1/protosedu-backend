@@ -51,6 +51,7 @@ def send_daily_email_to_all_students():
                 student.user.last_name,
                 student.cups,
                 student.level,
+                frontend_url + "/dashboard",
             )
             msg = (
                 "Daily Update",
@@ -77,6 +78,7 @@ def send_daily_email_to_all_parents():
                 "first_name": parent.user.first_name,
                 "last_name": parent.user.last_name,
                 "children": parent.children.all(),
+                "dashboard_url": frontend_url + "/dashboard",
             }
             html_content = render_to_string("parent_email_template.html", context)
             text_content = strip_tags(html_content)
@@ -132,7 +134,7 @@ def send_activation_email(user_id, password):
     user.save()
     activation_url = f"{frontend_url}activate/{user.activation_token}/"
     context = {"user": user, "activation_url": activation_url, "password": password}
-    subject = "Activate your Vunderkids Account"
+    subject = "Activate your protosedu Account"
     html_message = render_to_string("activation_email.html", context)
     plain_message = strip_tags(html_message)
     from_email = settings.DEFAULT_FROM_EMAIL
@@ -148,7 +150,7 @@ def send_password_reset_request_email(user_id):
     user = User.objects.get(pk=user_id)
     reset_password_url = f"{frontend_url}reset-password/{user.reset_password_token}/"
     context = {"user": user, "reset_password_url": reset_password_url}
-    subject = "Password reset Vunderkids account"
+    subject = "Password reset protosedu account"
     html_message = render_to_string("password_reset_request_email.html", context)
     plain_message = strip_tags(html_message)
     from_email = settings.DEFAULT_FROM_EMAIL
