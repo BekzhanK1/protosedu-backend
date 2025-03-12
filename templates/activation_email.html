@@ -6,10 +6,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
 
         body {
-            font-family: 'Montserrat', Arial, Helvetica, sans-serif;
-            color-scheme: light dark;
-            color: #333;
-            line-height: 1.6;
+            font-family: 'Montserrat', Arial, sans-serif;
             background-color: #f4f4f4;
             margin: 0;
             padding: 0;
@@ -17,42 +14,11 @@
 
         .email-container {
             background-color: #ffffff;
-            max-width: 800px;
+            max-width: 600px;
             margin: 20px auto;
-            padding: 30px;
+            padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        a {
-            display: inline-block;
-            background-color: #00639E;
-            color: white;
-            padding: 12px 24px;
-            font-weight: bold;
-            font-size: large;
-            text-decoration: none;
-            border-radius: 5px;
-            transition: background-color 0.3s ease;
-        }
-
-        a:hover {
-            background-color: #004a74;
-        }
-
-        a:visited {
-            color: white;
-            background-color: #00639E;
-            /* Отключаем фиолетовый цвет для посещённой ссылки */
-        }
-
-        p {
-            color: #333;
-        }
-
-        .warning {
-            color: red;
-            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .logo {
@@ -65,11 +31,31 @@
             margin-bottom: 20px;
         }
 
+        .content {
+            color: #333;
+            line-height: 1.6;
+        }
+
         .footer {
             text-align: center;
-            margin-top: 30px;
+            margin-top: 20px;
             font-size: small;
             color: #777;
+        }
+
+        a {
+            color: #00639E;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .warning {
+            color: red;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -77,22 +63,24 @@
 <body>
     <div class="email-container">
         <div class="logo">
-            <img src="https://i.postimg.cc/htrXDhnc/logo-blue.png" alt="logo" style="width: 200px; height: 55px;">
+            <img src="https://api.protosedu.kz/protos_logo_blue.png" alt="Protosedu Logo"
+                style="width: 150px; height: auto;">
         </div>
         <div class="header">
-            <h1>Здравствуйте, {{ user.first_name }}!</h1>
+            <h2>Здравствуйте, {{ user.first_name }}!</h2>
         </div>
-        <p>Спасибо, что зарегистрировались на сайте protosedu.kz. Пожалуйста, нажмите на ссылку ниже, чтобы активировать
-            ваш аккаунт:</p>
-        <p style="text-align: center; margin: 30px 0;">
-            <a href="{{ activation_url }}">Активировать аккаунт</a>
-        </p>
-        <p>Ваш пароль: <strong>{{ password }}</strong></p>
-        <p class="warning">НИКОМУ НЕ СООБЩАЙТЕ ПАРОЛЬ!</p>
+        <div class="content">
+            <p>Спасибо, что зарегистрировались на <strong>protosedu.kz</strong>. Пожалуйста, активируйте ваш аккаунт,
+                перейдя по ссылке:</p>
+            <p><a href="{{ activation_url }}">{{ activation_url }}</a></p>
+            <p>Ваш пароль: <strong>{{ password }}</strong></p>
+            <p class="warning">НИКОМУ НЕ СООБЩАЙТЕ ПАРОЛЬ!</p>
+        </div>
         <div class="footer">
-            <p>Если вы не регистрировались на сайте protosedu.kz, проигнорируйте это письмо.</p>
+            <p>Если вы не регистрировались на <strong>protosedu.kz</strong>, проигнорируйте это письмо.</p>
         </div>
     </div>
+
 </body>
 
 </html>
