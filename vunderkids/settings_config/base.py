@@ -46,6 +46,14 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": "redis://redis:6379/1",
+    }
+}
+
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "vunderkids API",
     "DESCRIPTION": "This is API for e-learning system that is served on https://vunderkids.kz",

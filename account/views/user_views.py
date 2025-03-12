@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -12,7 +13,19 @@ class CurrentUserView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        data = self._get_user_data(request.user)
+        user = request.user
+        cache_key = f"user_data_{user.id}"
+        cached_data = cache.get(cache_key)
+
+        print("cached_data", cached_data)
+
+        if cached_data is None:
+            print("cached_data is None")
+            data = self._get_user_data(user)
+            cache.set(cache_key, data, timeout=300)  # Cache for 5 minutes
+        else:
+            data = cached_data
+
         return Response(data)
 
     def _get_user_data(self, user):
