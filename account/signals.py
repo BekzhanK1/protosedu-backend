@@ -4,6 +4,7 @@ from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 from account.models import Child, Parent, Student
 from subscription.models import Subscription
+from tasks.models import Course, Section
 
 
 User = get_user_model()
@@ -63,3 +64,32 @@ def invalidate_child_cache(child_id):
 @receiver(post_delete, sender=Child)
 def clear_child_cache(sender, instance, **kwargs):
     invalidate_child_cache(instance.pk)
+
+
+@receiver(post_save, sender=Course)
+@receiver(post_delete, sender=Course)
+def invalidate_courses_cache(sender, instance, **kwargs):
+    """Clears the course list cache when a course is added, updated, or deleted."""
+    print("Invalidating courses cache...")
+
+    cache_keys = [
+        "courses_all",
+        f"courses_{instance.grade}_{instance.language}",
+    ]
+
+    for key in cache_keys:
+        cache.delete(key)
+
+    print("Cache invalidated:", cache_keys)
+
+
+@receiver(post_save, sender=Section)
+@receiver(post_delete, sender=Section)
+def invalidate_course_cache_on_section_change(sender, instance, **kwargs):
+    """Clears the cached course when a section is added, updated, or deleted."""
+    print(f"Invalidating course cache due to section change: {instance.course.id}")
+
+    cache_key = f"course_{instance.course.id}"
+    cache.delete(cache_key)
+
+    print("Cache invalidated:", cache_key)

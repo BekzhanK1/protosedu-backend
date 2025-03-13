@@ -1,5 +1,6 @@
 from django.shortcuts import get_object_or_404
 from django.db import transaction
+from django.core.cache import cache
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -32,6 +33,7 @@ from .serializers import (
 )
 
 GAME_COST_CONST = 20
+CACHE_TIMEOUT = 600
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -39,28 +41,67 @@ class CourseViewSet(viewsets.ModelViewSet):
     serializer_class = CourseSerializer
     permission_classes = [IsSuperUserOrStaffOrReadOnly]
 
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        cache_key = f"course_{instance.id}"
+        cached_data = cache.get(cache_key)
+
+        if cached_data:
+            print("Cache hit", cached_data)
+            return Response(cached_data)
+
+        print("Cache miss")
+        serializer = self.serializer_class(instance, context={"request": request})
+        cache.set(cache_key, serializer.data, CACHE_TIMEOUT)
+
+        return Response(serializer.data)
+
     def list(self, request):
         user = request.user
         child_id = request.query_params.get("child_id", None)
 
         if user.is_student:
             student = get_object_or_404(Student, user=user)
+            cache_key = f"courses_{student.grade}_{student.language}"
             queryset = Course.objects.filter(
                 grade=student.grade,
                 language=student.language,
             )
         elif user.is_parent and child_id:
             child = get_object_or_404(Child, parent=user.parent, pk=child_id)
+            cache_key = f"courses_{child.grade}_{child.language}"
             queryset = Course.objects.filter(
                 grade=child.grade,
                 language=child.language,
             )
         else:
+            cache_key = "courses_all"
             queryset = Course.objects.all()
+
+        print("cache_key", cache_key)
+
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            print("Cache hit", cached_data)
+            return Response(cached_data)
+
+        print("Cache miss")
+
+        queryset = (
+            Course.objects.filter(grade=student.grade, language=student.language)
+            if user.is_student
+            else (
+                Course.objects.filter(grade=child.grade, language=child.language)
+                if user.is_parent and child_id
+                else Course.objects.all()
+            )
+        )
 
         serializer = self.serializer_class(
             queryset, many=True, context={"request": request}
         )
+        cache.set(cache_key, serializer.data, CACHE_TIMEOUT)
+
         return Response(serializer.data)
 
     def create(self, request):
