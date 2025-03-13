@@ -117,6 +117,7 @@ class Question(models.Model):
         ("mark_all", "Mark All That Apply"),
         ("number_line", "Number Line"),
         ("drag_position", "Drag Position"),
+        ("click_image", "Click Image"),
     ]
     task = models.ForeignKey(Task, related_name="questions", on_delete=models.CASCADE)
     title = models.CharField(max_length=100)
