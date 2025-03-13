@@ -130,11 +130,36 @@ class SectionViewSet(viewsets.ModelViewSet):
             "order"
         )
 
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        cache_key = f"section_{instance.id}"
+        cached_data = cache.get(cache_key)
+
+        if cached_data:
+            print("Cache hit", cached_data)
+            return Response(cached_data)
+
+        print("Cache miss")
+        serializer = self.serializer_class(instance, context={"request": request})
+        cache.set(cache_key, serializer.data, CACHE_TIMEOUT)
+
+        return Response(serializer.data)
+
     def list(self, request, course_pk=None):
+        cache_key = f"sections_{course_pk}"
+        cached_data = cache.get(cache_key)
+
+        if cached_data:
+            print("Cache hit", cached_data)
+            return Response(cached_data)
+
+        print("Cache miss")
         queryset = self.get_queryset()
         serializer = SectionSerializer(
             queryset, many=True, context={"request": request}
         )
+        cache.set(cache_key, serializer.data, CACHE_TIMEOUT)
+
         return Response(serializer.data)
 
     def create(self, request, course_pk=None):

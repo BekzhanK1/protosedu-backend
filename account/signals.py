@@ -4,7 +4,7 @@ from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 from account.models import Child, Parent, Student
 from subscription.models import Subscription
-from tasks.models import Course, Section
+from tasks.models import Chapter, Course, Section
 
 
 User = get_user_model()
@@ -88,8 +88,27 @@ def invalidate_courses_cache(sender, instance, **kwargs):
 def invalidate_course_cache_on_section_change(sender, instance, **kwargs):
     """Clears the cached course when a section is added, updated, or deleted."""
     print(f"Invalidating course cache due to section change: {instance.course.id}")
+    if instance.course:
+        cache_key = f"course_{instance.course.id}"
+        cache.delete(cache_key)
+        print("Cache invalidated:", cache_key)
 
-    cache_key = f"course_{instance.course.id}"
-    cache.delete(cache_key)
 
-    print("Cache invalidated:", cache_key)
+@receiver(post_save, sender=Section)
+@receiver(post_delete, sender=Section)
+def invalidate_sections_cache(sender, instance, **kwargs):
+    """Clears the cached section when a section is added, updated, or deleted."""
+    if instance.course:
+        cache_key = f"sections_{instance.course.id}"
+        cache.delete(cache_key)
+        print("Cache invalidated:", cache_key)
+
+
+@receiver(post_save, sender=Chapter)
+@receiver(post_delete, sender=Chapter)
+def invalidate_section_cache_on_chapter_change(sender, instance, **kwargs):
+    """Clears the cached chapters when a chapter is added, updated, or deleted."""
+    if instance.section:
+        cache_key = f"section_{instance.section.id}"
+        cache.delete(cache_key)
+        print("Cache invalidated:", cache_key)
