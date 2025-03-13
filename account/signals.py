@@ -4,7 +4,7 @@ from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 from account.models import Child, Parent, Student
 from subscription.models import Subscription
-from tasks.models import Chapter, Course, Section
+from tasks.models import Chapter, Content, Course, Section
 
 
 User = get_user_model()
@@ -69,13 +69,15 @@ def clear_child_cache(sender, instance, **kwargs):
 @receiver(post_save, sender=Course)
 @receiver(post_delete, sender=Course)
 def invalidate_courses_cache(sender, instance, **kwargs):
-    """Clears the course list cache when a course is added, updated, or deleted."""
+    """Clears course cache when a course is added, updated, or deleted."""
     print("Invalidating courses cache...")
 
     cache_keys = [
-        "courses_all",
-        f"courses_{instance.grade}_{instance.language}",
+        f"courses_{grade}_{lang}"
+        for grade in range(-1, 5)
+        for lang in ["ru", "en", "kz"]
     ]
+    cache_keys.append("courses_all")
 
     for key in cache_keys:
         cache.delete(key)
@@ -94,14 +96,14 @@ def invalidate_course_cache_on_section_change(sender, instance, **kwargs):
         print("Cache invalidated:", cache_key)
 
 
-@receiver(post_save, sender=Section)
-@receiver(post_delete, sender=Section)
+@receiver([post_save, post_delete], sender=Section)
 def invalidate_sections_cache(sender, instance, **kwargs):
-    """Clears the cached section when a section is added, updated, or deleted."""
+    """Clears the cached sections and course when a section is modified."""
     if instance.course:
-        cache_key = f"sections_{instance.course.id}"
-        cache.delete(cache_key)
-        print("Cache invalidated:", cache_key)
+        course_cache_key = f"course_{instance.course.id}"
+        sections_cache_key = f"sections_{instance.course.id}"
+        cache.delete_many([course_cache_key, sections_cache_key])
+        print("Cache invalidated:", course_cache_key, sections_cache_key)
 
 
 @receiver(post_save, sender=Chapter)
@@ -111,4 +113,33 @@ def invalidate_section_cache_on_chapter_change(sender, instance, **kwargs):
     if instance.section:
         cache_key = f"section_{instance.section.id}"
         cache.delete(cache_key)
+        cache.delete(f"sections_{instance.section.course.id}")
         print("Cache invalidated:", cache_key)
+
+
+@receiver([post_save, post_delete], sender=Chapter)
+def invalidate_chapter_cache(sender, instance, **kwargs):
+    """Clears the cached chapter and related section when a chapter changes."""
+    if instance.section:
+        section_cache_key = f"section_{instance.section.id}"
+        chapters_cache_key = f"chapters_{instance.section.id}"
+        sections_cache_key = f"sections_{instance.section.course.id}"
+        cache.delete_many([section_cache_key, chapters_cache_key, sections_cache_key])
+        print("Cache invalidated:", section_cache_key, chapters_cache_key)
+
+
+@receiver(post_save, sender=Content)
+@receiver(post_delete, sender=Content)
+def invalidate_task_cache(sender, instance, **kwargs):
+    """Clears the cached chapter when a task is added, updated, or deleted."""
+    if instance.chapter:
+        chapter_cache_key = f"chapter_{instance.chapter.id}"
+        chapters_cache_key = f"chapters_{instance.chapter.section.id}"
+        section_cache_key = f"section_{instance.chapter.section.id}"
+        cache.delete_many([chapter_cache_key, chapters_cache_key, section_cache_key])
+        print(
+            "Cache invalidated:",
+            chapter_cache_key,
+            chapters_cache_key,
+            section_cache_key,
+        )

@@ -191,12 +191,45 @@ class ChapterViewSet(viewsets.ModelViewSet):
     serializer_class = ChapterSerializer
     permission_classes = [IsSuperUserOrStaffOrReadOnly]
 
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        cache_key = f"chapter_{instance.id}"
+        cached_data = cache.get(cache_key)
+
+        if cached_data:
+            print("Cache hit", cached_data)
+            return Response(cached_data)
+
+        print("Cache miss")
+        serializer = self.serializer_class(instance, context={"request": request})
+        cache.set(cache_key, serializer.data, CACHE_TIMEOUT)
+
+        return Response(serializer.data)
+
+    def list(self, request, *args, **kwargs):
+        section_pk = self.kwargs["section_pk"]
+        cache_key = f"chapters_{section_pk}"
+        cached_data = cache.get(cache_key)
+
+        if cached_data:
+            print("Cache hit", cached_data)
+            return Response(cached_data)
+
+        print("Cache miss")
+        queryset = self.get_queryset()
+        serializer = self.serializer_class(
+            queryset, many=True, context={"request": request}
+        )
+        cache.set(cache_key, serializer.data, CACHE_TIMEOUT)
+
+        return Response(serializer.data)
+
     def get_queryset(self):
         return Chapter.objects.filter(section_id=self.kwargs["section_pk"]).order_by(
             "order"
         )
 
-    def create(self, request, course_pk=None, section_pk=None):
+    def create(self, request, section_pk=None):
         data = request.data.copy()
         data["section"] = section_pk
         serializer = self.serializer_class(data=data, context={"request": request})
@@ -216,7 +249,7 @@ class ContentViewSet(viewsets.ModelViewSet):
             "order"
         )
 
-    def create(self, request, course_pk=None, section_pk=None, chapter_pk=None):
+    def create(self, request, chapter_pk=None):
         data = request.data.copy()
         data["chapter"] = chapter_pk
         serializer = self.serializer_class(data=data, context={"request": request})
