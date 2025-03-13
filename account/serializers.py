@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
@@ -125,24 +126,29 @@ class ParentRegistrationSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        user_data = {
-            "username": validated_data.pop("username"),
-            "email": validated_data.pop("email"),
-            "first_name": validated_data.pop("first_name"),
-            "last_name": validated_data.pop("last_name"),
-            "phone_number": validated_data.pop("phone_number"),
-            "role": "parent",
-            "is_active": False,
-        }
-        user = User.objects.create_user(**user_data)
         password = validated_data.pop("password")
-        user.set_password(password)
-        user.save()
-        send_activation_email.delay(user.id, password)
 
-        # Create parent profile
-        parent = Parent.objects.create(user=user, **validated_data)
-        return parent
+        try:
+            with transaction.atomic():
+                user_data = {
+                    "username": validated_data.pop("username"),
+                    "email": validated_data.pop("email"),
+                    "first_name": validated_data.pop("first_name"),
+                    "last_name": validated_data.pop("last_name"),
+                    "phone_number": validated_data.pop("phone_number"),
+                    "role": "parent",
+                    "is_active": False,
+                }
+                user = User.objects.create_user(**user_data)
+                user.set_password(password)
+                user.save()
+                parent = Parent.objects.create(user=user, **validated_data)
+
+            send_activation_email.delay(user.id, password)
+
+            return parent
+        except Exception as e:
+            raise serializers.ValidationError({"error": str(e)})
 
 
 class ParentSerializer(serializers.ModelSerializer):
@@ -213,27 +219,34 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
         school_class = validated_data.pop("school_class")
         grade = validated_data.pop("grade")
         gender = validated_data.pop("gender")
-        # Create user
+
         user_data = {
             key: validated_data.pop(key)
             for key in ["username", "email", "first_name", "last_name", "phone_number"]
         }
-        user = User.objects.create_user(**user_data, role="student")
-        password = generate_password()
-        user.set_password(password)
-        user.save()
-        send_activation_email.delay(user.id, password)
 
-        # Create student associated with this user
-        student = Student.objects.create(
-            user=user,
-            school=school,
-            school_class=school_class,
-            grade=grade,
-            gender=gender,
-            **validated_data
-        )
-        return student
+        try:
+            with transaction.atomic():
+                user = User.objects.create_user(**user_data, role="student")
+                password = generate_password()
+                user.set_password(password)
+                user.save()
+
+                student = Student.objects.create(
+                    user=user,
+                    school=school,
+                    school_class=school_class,
+                    grade=grade,
+                    gender=gender,
+                    **validated_data
+                )
+
+            send_activation_email.delay(user.id, password)
+
+            return student
+
+        except Exception as e:
+            raise serializers.ValidationError({"error": str(e)})
 
 
 class StudentSerializer(serializers.ModelSerializer):

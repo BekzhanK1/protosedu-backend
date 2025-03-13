@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.db import transaction
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -42,22 +43,16 @@ class CourseViewSet(viewsets.ModelViewSet):
         user = request.user
         child_id = request.query_params.get("child_id", None)
 
-        print(child_id)
-
         if user.is_student:
             student = get_object_or_404(Student, user=user)
-            print(f"Student: {student}")
             queryset = Course.objects.filter(
                 grade=student.grade,
-                # course_type="regular",
                 language=student.language,
             )
         elif user.is_parent and child_id:
             child = get_object_or_404(Child, parent=user.parent, pk=child_id)
-            print(f"Child: {child}")
             queryset = Course.objects.filter(
                 grade=child.grade,
-                # course_type="regular",
                 language=child.language,
             )
         else:
@@ -179,16 +174,24 @@ class ContentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        for content_data in contents_data:
-            content = get_object_or_404(Content, id=content_data["id"])
-            content.order = content_data.get("order", content.order)
-            content.title = content_data.get("title", content.title)
-            content.description = content_data.get("description", content.description)
-            content.save()
-
-        return Response(
-            {"detail": "Contents updated successfully."}, status=status.HTTP_200_OK
-        )
+        try:
+            with transaction.atomic():
+                for content_data in contents_data:
+                    content = get_object_or_404(Content, id=content_data["id"])
+                    content.order = content_data.get("order", content.order)
+                    content.title = content_data.get("title", content.title)
+                    content.description = content_data.get(
+                        "description", content.description
+                    )
+                    content.save()
+            return Response(
+                {"detail": "Contents updated successfully."}, status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {"detail": "Error during updating contents."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -300,32 +303,53 @@ class QuestionViewSet(viewsets.ModelViewSet):
         else:
             data["task"] = self.kwargs["task_pk"]
 
-        serializer = self.serializer_class(
-            data=data, many=isinstance(data, list), context={"request": request}
-        )
-        if serializer.is_valid():
-            questions = serializer.save()
-            TaskCompletion.objects.filter(task_id=self.kwargs["task_pk"]).all().delete()
+        try:
+            with transaction.atomic():
+                serializer = self.serializer_class(
+                    data=data, many=isinstance(data, list), context={"request": request}
+                )
+                if serializer.is_valid():
+                    questions = serializer.save()
+                    TaskCompletion.objects.filter(
+                        task_id=self.kwargs["task_pk"]
+                    ).all().delete()
+                    return Response(
+                        self.serializer_class(
+                            questions, many=isinstance(data, list)
+                        ).data,
+                        status=status.HTTP_201_CREATED,
+                    )
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
             return Response(
-                self.serializer_class(questions, many=isinstance(data, list)).data,
-                status=status.HTTP_201_CREATED,
+                {"message": "Error during question creation"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def partial_update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", True)
         instance = self.get_object()
         data = request.data.copy()
         data["task"] = self.kwargs["task_pk"]
-        serializer = self.serializer_class(
-            instance, data=data, partial=partial, context={"request": request}
-        )
-        if serializer.is_valid():
-            question = serializer.save()
+
+        try:
+            with transaction.atomic():
+                serializer = self.serializer_class(
+                    instance, data=data, partial=partial, context={"request": request}
+                )
+                if serializer.is_valid():
+                    question = serializer.save()
+                    return Response(
+                        self.serializer_class(question).data, status=status.HTTP_200_OK
+                    )
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
             return Response(
-                self.serializer_class(question).data, status=status.HTTP_200_OK
+                {"message": "Error during question update"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(
         detail=True,
@@ -389,63 +413,64 @@ class QuestionViewSet(viewsets.ModelViewSet):
     ):
         entity = user.student if user else child
 
-        is_answer_exists = Answer.objects.filter(
-            user=user, child=child, question=question
-        ).exists()
+        try:
+            with transaction.atomic():
+                is_answer_exists = Answer.objects.filter(
+                    user=user, child=child, question=question
+                ).exists()
 
-        if is_answer_exists:
-            return {
-                "message": "Answer processed, but no reward is given",
-                "is_correct": is_correct,
-            }
+                if is_answer_exists:
+                    return {
+                        "message": "Answer processed, but no reward is given",
+                        "is_correct": is_correct,
+                    }
 
-        Answer.objects.create(
-            user=user if user else None,
-            child=child if child else None,
-            question=question,
-            answer=answer_text,
-            is_correct=is_correct,
-        )
+                Answer.objects.create(
+                    user=user if user else None,
+                    child=child if child else None,
+                    question=question,
+                    answer=answer_text,
+                    is_correct=is_correct,
+                )
 
-        if is_correct:
-            entity.add_question_reward()
-            entity.update_level()
+                if is_correct:
+                    entity.add_question_reward()
+                    entity.update_level()
 
-        # Handle task completion
-        task = question.task
-        total_questions = task.questions.count()
-        answered_questions = Answer.objects.filter(
-            user=user, child=child, question__task=task
-        ).count()
+                task = question.task
+                total_questions = task.questions.count()
+                answered_questions = Answer.objects.filter(
+                    user=user, child=child, question__task=task
+                ).count()
 
-        correct_answers = Answer.objects.filter(
-            user=user, child=child, question__task=task, is_correct=True
-        ).count()
+                correct_answers = Answer.objects.filter(
+                    user=user, child=child, question__task=task, is_correct=True
+                ).count()
 
-        wrong_answers = answered_questions - correct_answers
+                wrong_answers = answered_questions - correct_answers
 
-        if answered_questions == total_questions:
-            task_completion, created = TaskCompletion.objects.get_or_create(
-                user=user if user else None, child=child if child else None, task=task
-            )
-            if (
-                task_completion.correct == correct_answers
-                and task_completion.wrong == wrong_answers
-            ):
+                if answered_questions == total_questions:
+                    task_completion, created = TaskCompletion.objects.get_or_create(
+                        user=user if user else None,
+                        child=child if child else None,
+                        task=task,
+                    )
+                    task_completion.correct = correct_answers
+                    task_completion.wrong = wrong_answers
+                    task_completion.save()
+
+                    entity.update_streak()
+
                 return {
-                    "message": "Answer processed, but no reward is given",
+                    "message": "Answer processed, reward is given",
                     "is_correct": is_correct,
                 }
-            task_completion.correct = correct_answers
-            task_completion.wrong = wrong_answers
-            task_completion.save()
 
-            entity.update_streak()
-
-        return {
-            "message": "Answer processed, reward is given",
-            "is_correct": is_correct,
-        }
+        except Exception as e:
+            return {
+                "message": f"Error processing answer: {str(e)}",
+                "is_correct": False,
+            }
 
 
 class PlayGameView(APIView):

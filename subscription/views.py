@@ -1,5 +1,6 @@
 import requests
 from django.conf import settings
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status, viewsets
@@ -11,9 +12,12 @@ from rest_framework.response import Response
 from account.permissions import IsParent, IsStudent, IsSuperUser
 
 from .models import Payment, Plan, Subscription
-from .serializers import (PaymentSerializer, PlanSerializer,
-                          SubscriptionCreateSerializer,
-                          SubscriptionModelSerializer)
+from .serializers import (
+    PaymentSerializer,
+    PlanSerializer,
+    SubscriptionCreateSerializer,
+    SubscriptionModelSerializer,
+)
 from .utils import generate_invoice_id
 
 TERMINAL_ID = settings.HALYK_TERMINAL_ID
@@ -90,51 +94,63 @@ def initiate_payment(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-    existing_payment = Payment.objects.filter(
-        user=user, status="pending", duration=duration
-    ).first()
-    if existing_payment:
-        payment = existing_payment
-    else:
-        payment = Payment.objects.create(
-            invoice_id=invoice_id,
-            invoice_id_alt=invoice_id_alt,
-            user=user,
-            duration=plan.duration,
-            amount=amount,
-            email=user.email,
-        )
+    try:
+        with transaction.atomic():
+            existing_payment = Payment.objects.filter(
+                user=user, status="pending", duration=duration
+            ).first()
 
-    post_link = f"https://api.protosedu.kz/api/payments/payment-confirmation/"
-    failure_post_link = f"https://api.protosedu.kz/api/payments/payment-confirmation/"
-    payment_data = {
-        "grant_type": "client_credentials",
-        "scope": "webapi usermanagement email_send verification statement statistics payment",
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "invoiceID": invoice_id,
-        "amount": amount,
-        "currency": "KZT",
-        "terminal": TERMINAL_ID,
-        "postLink": post_link,
-        "failurePostLink": failure_post_link,
-    }
+            if existing_payment:
+                payment = existing_payment
+            else:
+                payment = Payment.objects.create(
+                    invoice_id=invoice_id,
+                    invoice_id_alt=invoice_id_alt,
+                    user=user,
+                    duration=plan.duration,
+                    amount=amount,
+                    email=user.email,
+                )
 
-    response = requests.post(
-        "https://epay-oauth.homebank.kz/oauth2/token",
-        data=payment_data,
-    )
+            post_link = f"https://api.protosedu.kz/api/payments/payment-confirmation/"
+            failure_post_link = (
+                f"https://api.protosedu.kz/api/payments/payment-confirmation/"
+            )
+            payment_data = {
+                "grant_type": "client_credentials",
+                "scope": "webapi usermanagement email_send verification statement statistics payment",
+                "client_id": CLIENT_ID,
+                "client_secret": CLIENT_SECRET,
+                "invoiceID": invoice_id,
+                "amount": amount,
+                "currency": "KZT",
+                "terminal": TERMINAL_ID,
+                "postLink": post_link,
+                "failurePostLink": failure_post_link,
+            }
 
-    if response.status_code == 200:
-        payment_serializer = PaymentSerializer(payment)
-        token_json = response.json()
-        payment.status = "pending"
-        payment.save()
-        return Response({"payment": payment_serializer.data, "token": token_json})
+            response = requests.post(
+                "https://epay-oauth.homebank.kz/oauth2/token",
+                data=payment_data,
+            )
 
-    else:
+            if response.status_code == 200:
+                payment_serializer = PaymentSerializer(payment)
+                token_json = response.json()
+                payment.status = "pending"
+                payment.save()
+                return Response(
+                    {"payment": payment_serializer.data, "token": token_json}
+                )
+
+            else:
+                return Response(
+                    {"error": "Failed to initiate payment", "details": response.text},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+    except Exception as e:
         return Response(
-            {"error": "Failed to initiate payment", "details": response.text},
+            {"error": "Failed to initiate payment", "details": str(e)},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -149,29 +165,39 @@ def payment_confirmation(request):
     payment = get_object_or_404(Payment, invoice_id=invoice_id, status="pending")
     user = payment.user
 
-    if status_code == "ok":
-        payment.status = "success"
-        payment.save()
+    try:
+        with transaction.atomic():
+            if status_code == "ok":
+                payment.status = "success"
+                payment.save()
 
-        plan_name = payment.duration
-        serializer = SubscriptionCreateSerializer(
-            data={"plan_name": plan_name}, context={"request": request, "user": user}
-        )
+                plan_name = payment.duration
+                serializer = SubscriptionCreateSerializer(
+                    data={"plan_name": plan_name},
+                    context={"request": request, "user": user},
+                )
 
-        if serializer.is_valid():
-            subscription = serializer.save()
-            return Response(
-                {
-                    "message": "Subscription created successfully",
-                    "subscription_id": subscription.id,
-                },
-                status=status.HTTP_201_CREATED,
-            )
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    else:
-        payment.status = "failed"
-        payment.save()
+                if serializer.is_valid():
+                    subscription = serializer.save()
+                    return Response(
+                        {
+                            "message": "Subscription created successfully",
+                            "subscription_id": subscription.id,
+                        },
+                        status=status.HTTP_201_CREATED,
+                    )
+                else:
+                    return Response(
+                        serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                    )
+            else:
+                payment.status = "failed"
+                payment.save()
+                return Response(
+                    {"message": "Payment failed"}, status=status.HTTP_400_BAD_REQUEST
+                )
+    except Exception as e:
         return Response(
-            {"message": "Payment failed"}, status=status.HTTP_400_BAD_REQUEST
+            {"message": "Error occurred", "details": str(e)},
+            status=status.HTTP_400_BAD_REQUEST,
         )

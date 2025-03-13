@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AnonymousUser
+from django.db import transaction
 from rest_framework import serializers
 
 from .models import DURATION_CHOICES, Payment, Plan, Subscription
@@ -44,15 +45,20 @@ class SubscriptionCreateSerializer(serializers.Serializer):
         plan = validated_data["plan"]
         active_subscription = Subscription.objects.filter(user=user).first()
 
-        if active_subscription:
-            if active_subscription.plan.duration == "free-trial":
-                active_subscription.delete()
+        try:
+            with transaction.atomic():
+                if active_subscription:
+                    if active_subscription.plan.duration == "free-trial":
+                        active_subscription.delete()
+                        return self._create_subscription(user, plan)
+                    elif active_subscription.is_active:
+                        raise serializers.ValidationError(
+                            "You already have an active subscription."
+                        )
                 return self._create_subscription(user, plan)
-            elif active_subscription.is_active:
-                raise serializers.ValidationError(
-                    "You already have an active subscription."
-                )
-        return self._create_subscription(user, plan)
+
+        except Exception as e:
+            raise serializers.ValidationError({"error": str(e)})
 
     def _create_subscription(self, user, plan):
         return Subscription.objects.create(user=user, plan=plan)

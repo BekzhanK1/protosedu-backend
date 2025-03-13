@@ -4,6 +4,7 @@ from datetime import timedelta
 from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db import transaction
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -26,23 +27,27 @@ class ActivateAccount(APIView):
         try:
             user = User.objects.get(activation_token=token)
             if user.is_activation_token_expired:
-                user.activation_token = uuid.uuid4()
-                user.activation_token_expires_at = timezone.now() + timedelta(days=1)
-                user.save()
-                send_activation_email.delay(user.pk, generate_password())
+                with transaction.atomic():
+                    user.activation_token = uuid.uuid4()
+                    user.activation_token_expires_at = timezone.now() + timedelta(
+                        days=1
+                    )
+                    user.save()
+                    send_activation_email.delay(user.pk, generate_password())
                 return Response(
                     "Your activation link has expired! You will receive a new email soon",
                     status=status.HTTP_403_FORBIDDEN,
                 )
-            user.is_active = True
-            user.activation_token = None
-            user.save()
-            if user.is_parent:
-                plan, _ = Plan.objects.get_or_create(duration="free-trial")
-                Subscription.objects.create(user=user, plan=plan)
-            elif user.is_student:
-                plan, _ = Plan.objects.get_or_create(duration="annual")
-                Subscription.objects.create(user=user, plan=plan)
+            with transaction.atomic():
+                user.is_active = True
+                user.activation_token = None
+                user.save()
+                if user.is_parent:
+                    plan, _ = Plan.objects.get_or_create(duration="free-trial")
+                    Subscription.objects.create(user=user, plan=plan)
+                elif user.is_student:
+                    plan, _ = Plan.objects.get_or_create(duration="annual")
+                    Subscription.objects.create(user=user, plan=plan)
             return Response(
                 "Your account has been activated successfully!",
                 status=status.HTTP_200_OK,
