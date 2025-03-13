@@ -1,9 +1,10 @@
 import uuid
 from datetime import timedelta
 
-from celery import shared_task
+from celery import group, shared_task
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives, get_connection
+from django.contrib.auth.hashers import make_password
+from django.core.mail import EmailMultiAlternatives, get_connection, send_mass_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.html import strip_tags
@@ -95,35 +96,65 @@ def send_daily_email_to_all_parents():
         send_mass_html_mail(datatuple, fail_silently=False)
 
 
+BATCH_SIZE = 100
+
+
 @shared_task
 def send_mass_activation_email(user_ids):
+    """Splits users into chunks and runs parallel tasks."""
+    chunks = [user_ids[i : i + BATCH_SIZE] for i in range(0, len(user_ids), BATCH_SIZE)]
+    task_group = group(send_activation_email_chunk.s(chunk) for chunk in chunks)
+    task_group.apply_async()
+    return f"Queued {len(chunks)} parallel tasks for {len(user_ids)} users."
+
+
+@shared_task
+def send_activation_email_chunk(user_ids):
+    """Handles activation email sending for a batch of users."""
     users = User.objects.filter(id__in=user_ids)
+    updated_users = []
     datatuple = []
+    passwords = {}
 
     for user in users:
         password = generate_password()
-        user.set_password(password)
+        user.password = make_password(password)
         user.activation_token = uuid.uuid4()
         user.activation_token_expires_at = timezone.now() + timedelta(days=1)
-        user.save()
-        print(user)
-        print(password)
+        passwords[user.id] = password
+        updated_users.append(user)
 
+    User.objects.bulk_update(
+        updated_users, ["password", "activation_token", "activation_token_expires_at"]
+    )
+
+    print(passwords)
+
+    # frontend_url = settings.FRONTEND_URL
+    # for user in users:
     #     activation_url = f"{frontend_url}activate/{user.activation_token}/"
-    #     context = {"user": user, "activation_url": activation_url, "password": password}
+    #     context = {
+    #         "user": user,
+    #         "activation_url": activation_url,
+    #         "password": passwords[user.id],
+    #     }
+
     #     subject = "Activate your Vunderkids Account"
     #     html_message = render_to_string("activation_email.html", context)
     #     plain_message = strip_tags(html_message)
+
     #     msg = (
     #         subject,
     #         plain_message,
-    #         html_message,
     #         settings.DEFAULT_FROM_EMAIL,
     #         [user.email],
     #     )
     #     datatuple.append(msg)
 
-    # send_mass_html_mail(datatuple, fail_silently=False)
+    # if datatuple:
+    #     send_mass_mail(datatuple, fail_silently=False)
+
+    return f"Processed {len(users)} users."
 
 
 @shared_task
