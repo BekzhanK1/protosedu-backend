@@ -36,13 +36,10 @@ def get_presigned_url(bucket_name, key, expiration=3600):
             Params={"Bucket": bucket_name, "Key": key},
             ExpiresIn=expiration,
         )
-        print(url)
         return url
     except NoCredentialsError:
-        print("No AWS credentials found.")
         return None
     except Exception as e:
-        print(f"An error occurred: {e}")
         return None
 
 

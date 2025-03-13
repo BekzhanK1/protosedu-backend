@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 STAGE = os.getenv("STAGE")
-print(STAGE)
 
 if STAGE == "PROD":
     from vunderkids.settings_config.production import *

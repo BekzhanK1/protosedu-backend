@@ -189,6 +189,7 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Student
         fields = (
+            "username",
             "email",
             "first_name",
             "last_name",
@@ -262,6 +263,7 @@ class StudentSerializer(serializers.ModelSerializer):
 
 
 class StudentsListSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username")
     school_name = serializers.SerializerMethodField()
     first_name = serializers.CharField(source="user.first_name")
     last_name = serializers.CharField(source="user.last_name")
@@ -308,6 +310,7 @@ class ChildrenListSerializer(serializers.ModelSerializer):
 
 
 class SimpleStudentSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username")
     first_name = serializers.CharField(source="user.first_name")
     last_name = serializers.CharField(source="user.last_name")
     email = serializers.EmailField(source="user.email")
@@ -380,13 +383,10 @@ class ChildSerializer(serializers.ModelSerializer):
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
-        print(user)
         token = super().get_token(user)
-        # Add any additional token customization here if needed
         return token
 
     def validate(self, attrs):
-        print(attrs)
         data = super().validate(attrs)
 
         try:
@@ -449,9 +449,6 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
                     "is_staff": self.user.is_staff,
                 }
         except ObjectDoesNotExist as e:
-            print(e)
-            raise serializers.ValidationError(
-                "User data could not be retrieved."
-            )  # Customize error message as needed
+            raise serializers.ValidationError("User data could not be retrieved.")
 
         return data

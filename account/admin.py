@@ -1,8 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.hashers import make_password
-from .models import (Child, Class, LevelRequirement, Parent, School, Student,
-                     User)
+from .models import Child, Class, LevelRequirement, Parent, School, Student, User
 
 
 # Register User model with customizations
@@ -24,13 +23,13 @@ class UserAdmin(admin.ModelAdmin):
 
 class CustomUserAdmin(UserAdmin):
     def save_model(self, request, obj, form, change):
-        print(form.changed_data)
-        if change:  # Only hash password if the user is being updated
-            if 'password' in form.changed_data:
+        if change:
+            if "password" in form.changed_data:
                 obj.password = make_password(obj.password)
         else:
             obj.password = make_password(obj.password)
         super().save_model(request, obj, form, change)
+
 
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)

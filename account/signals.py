@@ -18,7 +18,6 @@ def delete_user_with_student(sender, instance, **kwargs):
 
 def invalidate_user_cache(user_id):
     """Deletes cached user data when relevant models are updated."""
-    print("Invalidating cache for user", user_id)
     cache_key = f"user_data_{user_id}"
     cache.delete(cache_key)
 
@@ -52,3 +51,15 @@ def clear_parent_cache(sender, instance, **kwargs):
 @receiver(post_delete, sender=Child)
 def clear_child_cache(sender, instance, **kwargs):
     invalidate_user_cache(instance.parent.user.id)
+
+
+def invalidate_child_cache(child_id):
+    """Deletes cached child data when the model is updated or deleted."""
+    cache_key = f"child_data_{child_id}"
+    cache.delete(cache_key)
+
+
+@receiver(post_save, sender=Child)
+@receiver(post_delete, sender=Child)
+def clear_child_cache(sender, instance, **kwargs):
+    invalidate_child_cache(instance.pk)
