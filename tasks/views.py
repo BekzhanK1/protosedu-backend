@@ -229,7 +229,7 @@ class ChapterViewSet(viewsets.ModelViewSet):
             "order"
         )
 
-    def create(self, request, section_pk=None):
+    def create(self, request, section_pk=None, course_pk=None, *args, **kwargs):
         data = request.data.copy()
         data["section"] = section_pk
         serializer = self.serializer_class(data=data, context={"request": request})
