@@ -460,14 +460,15 @@ class QuestionViewSet(viewsets.ModelViewSet):
         question = self.get_object()
         user = request.user
         child_id = request.data.get("child_id")
-        answer_text = request.data.get("answer")
+        # answer_text = request.data.get("answer")
+        is_correct = request.data.get("is_correct")
 
-        if not answer_text:
-            return Response(
-                {"message": "Answer is required"}, status=status.HTTP_400_BAD_REQUEST
-            )
+        # if not answer_text:
+        #     return Response(
+        #         {"message": "Answer is required"}, status=status.HTTP_400_BAD_REQUEST
+        #     )
 
-        is_correct = self.validate_answer(question, answer_text)
+        # is_correct = self.validate_answer(question, answer_text)
 
         if user.is_student:
             result = self.handle_answer(
@@ -492,20 +493,20 @@ class QuestionViewSet(viewsets.ModelViewSet):
 
         return Response(result, status=status.HTTP_200_OK)
 
-    def validate_answer(self, question, answer):
-        if question.question_type in [
-            "multiple_choice_text",
-            "multiple_choice_images",
-            "true_false",
-            "drag_position",
-            "number_line",
-        ]:
-            return int(answer) == question.correct_answer
-        elif question.question_type in ["drag_and_drop_text", "drag_and_drop_images"]:
-            return answer == question.correct_answer
-        elif question.question_type == "mark_all":
-            return set(answer) == set(question.correct_answer)
-        return False
+    # def validate_answer(self, question, answer):
+    #     if question.question_type in [
+    #         "multiple_choice_text",
+    #         "multiple_choice_images",
+    #         "true_false",
+    #         "drag_position",
+    #         "number_line",
+    #     ]:
+    #         return int(answer) == question.correct_answer
+    #     elif question.question_type in ["drag_and_drop_text", "drag_and_drop_images"]:
+    #         return answer == question.correct_answer
+    #     elif question.question_type == "mark_all":
+    #         return set(answer) == set(question.correct_answer)
+    #     return False
 
     def handle_answer(
         self, user=None, child=None, question=None, answer_text=None, is_correct=False
