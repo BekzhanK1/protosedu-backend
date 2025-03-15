@@ -474,7 +474,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
             result = self.handle_answer(
                 user=user,
                 question=question,
-                answer_text=answer_text,
+                # answer_text=answer_text,
                 is_correct=is_correct,
             )
         elif user.is_parent and child_id:
@@ -482,7 +482,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
             result = self.handle_answer(
                 child=child,
                 question=question,
-                answer_text=answer_text,
+                # answer_text=answer_text,
                 is_correct=is_correct,
             )
         else:
@@ -508,9 +508,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
     #         return set(answer) == set(question.correct_answer)
     #     return False
 
-    def handle_answer(
-        self, user=None, child=None, question=None, answer_text=None, is_correct=False
-    ):
+    def handle_answer(self, user=None, child=None, question=None, is_correct=False):
         entity = user.student if user else child
 
         try:
@@ -529,7 +527,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
                     user=user if user else None,
                     child=child if child else None,
                     question=question,
-                    answer=answer_text,
+                    # answer=answer_text,
                     is_correct=is_correct,
                 )
 

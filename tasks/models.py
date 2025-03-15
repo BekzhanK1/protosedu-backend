@@ -154,7 +154,7 @@ class Answer(models.Model):
     question = models.ForeignKey(
         Question, related_name="answers", on_delete=models.CASCADE
     )
-    answer = models.TextField()
+    # answer = models.TextField()
     is_correct = models.BooleanField()
 
     class Meta:
