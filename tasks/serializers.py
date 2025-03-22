@@ -3,8 +3,19 @@ from rest_framework import serializers
 
 from account.models import Child
 
-from .models import (Answer, Chapter, Content, Course, Image, Lesson, Question,
-                     Section, Task, TaskCompletion)
+from .models import (
+    Answer,
+    CanvasImage,
+    Chapter,
+    Content,
+    Course,
+    Image,
+    Lesson,
+    Question,
+    Section,
+    Task,
+    TaskCompletion,
+)
 
 
 class AnswerSerializer(serializers.Serializer):
@@ -38,11 +49,23 @@ class ImageSerializer(serializers.ModelSerializer):
         return obj.image.url
 
 
+class CanvasImageSerializer(serializers.ModelSerializer):
+    value = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CanvasImage
+        fields = "image_id", "value"
+
+    def get_value(self, obj):
+        return obj.image.url
+
+
 class QuestionSerializer(serializers.ModelSerializer):
     is_attempted = serializers.SerializerMethodField()
     is_correct = serializers.SerializerMethodField()
     images = ImageSerializer(many=True, read_only=True)
-    
+    canvas_images = CanvasImageSerializer(many=True, read_only=True)
+
     class Meta:
         model = Question
         fields = "__all__"
@@ -96,11 +119,44 @@ class QuestionSerializer(serializers.ModelSerializer):
         else:
             instance.images.all().delete()
 
+        self._handle_canvas_images(instance)
+
         instance.save()
         return instance
 
+    def _handle_canvas_images(self, question):
+        canvas_images_data = self.context.get("request").FILES
+
+        if not canvas_images_data:
+            return
+
+        options = []
+
+        for key in canvas_images_data:
+            if "canvasImage_" in key:
+                image_id = key.split("_")[
+                    1
+                ]  # Expecting the key to be formatted as 'canvasImage_imageId'
+                image_file = canvas_images_data[key]
+
+                image = question.canvas_images.filter(image_id=image_id).first()
+                if image:
+                    image.image = image_file
+                    image.save()
+                else:
+                    image = CanvasImage.objects.create(
+                        question=question, image=image_file, image_id=image_id
+                    )
+
+        question.options = options
+        question.save()
+
     def _handle_images(self, question):
         images_data = self.context.get("request").FILES
+
+        if not images_data:
+            return
+
         options = []
 
         for key in images_data:

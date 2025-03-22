@@ -1,9 +1,17 @@
 from django.urls import path
 from rest_framework_nested import routers
 
-from .views import (ChapterViewSet, ContentViewSet, CourseViewSet,
-                    LessonViewSet, PlayGameView, QuestionViewSet,
-                    SectionViewSet, TaskViewSet)
+from .views import (
+    ChapterViewSet,
+    ContentViewSet,
+    CourseViewSet,
+    LessonViewSet,
+    PlayGameView,
+    QuestionViewSet,
+    SectionViewSet,
+    TaskViewSet,
+    DeleteCanvasImage,
+)
 
 router = routers.DefaultRouter()
 router.register(r"courses", CourseViewSet)
@@ -30,6 +38,7 @@ tasks_router.register(r"questions", QuestionViewSet, basename="task-questions")
 
 urlpatterns = [
     path("play-game/", PlayGameView.as_view(), name="play-game"),
+    path("canvas-images/", DeleteCanvasImage.as_view(), name="delete-canvas-image"),
 ]
 
 urlpatterns += (

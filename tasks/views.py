@@ -12,6 +12,7 @@ from account.permissions import HasSubscription, IsSuperUserOrStaffOrReadOnly
 
 from .models import (
     Answer,
+    CanvasImage,
     Chapter,
     Content,
     Course,
@@ -22,6 +23,7 @@ from .models import (
     TaskCompletion,
 )
 from .serializers import (
+    CanvasImageSerializer,
     ChapterSerializer,
     ContentSerializer,
     CourseSerializer,
@@ -446,7 +448,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
 
         except Exception as e:
             return Response(
-                {"message": "Error during question update"},
+                {"message": "Error during question update", "error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -601,4 +603,44 @@ class PlayGameView(APIView):
         return Response(
             {"message": f"{cost} stars have been deducted", "is_enough": True},
             status=status.HTTP_200_OK,
+        )
+
+
+class DeleteCanvasImage(APIView):
+    permission_classes = [IsSuperUserOrStaffOrReadOnly]
+
+    def delete(self, request):
+        image_ids = request.data.get("image_ids")
+
+        if not image_ids:
+            return Response(
+                {"message": "Image id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not isinstance(image_ids, list):
+            return Response(
+                {"message": "Image id must be a list"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                for image_id in image_ids:
+                    if not image_id:
+                        return Response(
+                            {"message": "Image id is required"},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                    canvas_image = get_object_or_404(CanvasImage, image_id=image_id)
+                    canvas_image.delete()
+        except Exception as e:
+            return Response(
+                {"message": f"Error deleting canvas image: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {"message": "Canvas images has been deleted"}, status=status.HTTP_200_OK
         )

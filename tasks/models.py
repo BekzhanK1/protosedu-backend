@@ -144,6 +144,17 @@ class Image(models.Model):
         return f"Image for {self.question.id}"
 
 
+class CanvasImage(models.Model):
+    image_id = models.CharField(max_length=100, blank=True, null=True)
+    image = models.ImageField(upload_to="questions/")
+    question = models.ForeignKey(
+        Question, related_name="canvas_images", on_delete=models.CASCADE
+    )
+
+    def __str__(self):
+        return f"Canvas Image for {self.question.id}"
+
+
 class Answer(models.Model):
     user = models.ForeignKey(
         User, null=True, blank=True, related_name="answers", on_delete=models.CASCADE

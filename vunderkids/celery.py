@@ -14,6 +14,8 @@ app = Celery("vunderkids")
 # the configuration object to child processes.
 app.config_from_object("django.conf:settings", namespace="CELERY")
 
+from django.conf import settings
+
 # Load task modules from all registered Django app configs.
 app.autodiscover_tasks()
 
@@ -24,22 +26,24 @@ def debug_task(self):
 
 
 # celery.py or where you configure Celery
-
-app.conf.beat_schedule = {
-    "send_daily_email_to_all_students": {
-        "task": "account.tasks.send_daily_email_to_all_students",
-        "schedule": crontab(hour=20, minute=15),
-    },
-    "send_daily_email_to_all_parents": {
-        "task": "account.tasks.send_daily_email_to_all_parents",
-        "schedule": crontab(hour=20, minute=30),
-    },
-    "check-streaks-every-night": {
-        "task": "account.tasks.check_streaks",
-        "schedule": crontab(hour=23, minute=58),
-    },
-    "delete-expired-subscriptions-every-night": {
-        "task": "account.tasks.delete_expired_subscriptions",
-        "schedule": crontab(hour=2, minute=2),
-    },
-}
+if settings.STAGE == "PROD":
+    app.conf.beat_schedule = {
+        "send_daily_email_to_all_students": {
+            "task": "account.tasks.send_daily_email_to_all_students",
+            "schedule": crontab(hour=20, minute=15),
+        },
+        "send_daily_email_to_all_parents": {
+            "task": "account.tasks.send_daily_email_to_all_parents",
+            "schedule": crontab(hour=20, minute=30),
+        },
+        "check-streaks-every-night": {
+            "task": "account.tasks.check_streaks",
+            "schedule": crontab(hour=23, minute=58),
+        },
+        "delete-expired-subscriptions-every-night": {
+            "task": "account.tasks.delete_expired_subscriptions",
+            "schedule": crontab(hour=2, minute=2),
+        },
+    }
+else:
+    print("Celery is running in development mode")
