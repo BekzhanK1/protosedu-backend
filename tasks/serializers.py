@@ -108,6 +108,8 @@ class QuestionSerializer(serializers.ModelSerializer):
         if question.question_type in ["multiple_choice_images", "drag_and_drop_images"]:
             self._handle_images(question)
 
+        self._handle_canvas_images(question)
+
         return question
 
     def update(self, instance, validated_data):
