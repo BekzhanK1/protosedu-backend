@@ -2,10 +2,6 @@ from rest_framework import serializers
 from .models import Test, Question, Content, AnswerOption
 
 
-class TestSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Test
-        fields = "__all__"
 
 
 class AnswerOptionSerializer(serializers.ModelSerializer):
@@ -47,4 +43,35 @@ class QuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Question
+        fields = "__all__"
+
+    def save_with_contents_and_answers(self, contents, answers):
+        instance = self.save()
+
+        for key in contents:
+            if key=="text":
+                Content.objects.create(
+                    question=instance,
+                    content_type=key,
+                    text=contents[key],
+                )
+            else:
+                Content.objects.create(
+                    question=instance,
+                    content_type=key,
+                    image=contents[key]
+                )
+        
+        for answer in answers:
+            AnswerOption.objects.create(
+                question=instance,
+                text=answer["text"],
+                is_correct=answer["is_correct"]
+            )
+
+
+class TestSerializer(serializers.ModelSerializer):
+    questions = QuestionSerializer(many=True, read_only=True)
+    class Meta:
+        model = Test
         fields = "__all__"

@@ -25,6 +25,45 @@ class TestViewSet(viewsets.ModelViewSet):
     ordering_fields = ["order", "title"]
     ordering = ["order"]
 
+    def create(self, request):
+        test = request.data
+        print(test)
+        test_data = {
+            "title": test['title'],
+            "description": test["description"],
+            "test_type": test["test_type"]
+        }
+        test_serializer = self.get_serializer(data=test_data)
+        if test_serializer.is_valid():
+            test_instance = test_serializer.save()
+            for question in test["questions"]:
+                question["test"] = test_instance.pk
+                question_serializer = QuestionSerializer(data=question)
+                if question_serializer.is_valid():
+                    contents = {"text": question["title"]}
+                    if question["image"]:
+                        contents["image"] = question["image"]
+                    print(contents, question["answers"])
+                    question_serializer.save_with_contents_and_answers(contents, question["answers"])
+                if not question_serializer.is_valid():
+                    print(question_serializer.errors)
+        return Response(test_serializer.data, status=status.HTTP_201_CREATED)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        test_data = TestSerializer(instance).data
+
+        questions_data = []
+        for question in instance.questions.all():
+            question_data = QuestionSerializer(question).data
+            questions_data.append(question_data)
+            
+        print(test_data)
+        test_data['questions'] = questions_data
+        return Response(test_data, status=status.HTTP_200_OK)
+
+
 
 class QuestionViewSet(viewsets.ModelViewSet):
     queryset = Question.objects.all()
