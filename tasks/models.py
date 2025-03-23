@@ -118,14 +118,14 @@ class Question(models.Model):
         ("number_line", "Number Line"),
         ("drag_position", "Drag Position"),
         ("click_image", "Click Image"),
-        ("input_text", "Input Text")
+        ("input_text", "Input Text"),
     ]
     task = models.ForeignKey(Task, related_name="questions", on_delete=models.CASCADE)
-    title = models.CharField(max_length=100)
-    question_text = models.TextField()
+    title = models.CharField(max_length=100, null=True, blank=True)
+    question_text = models.TextField(null=True, blank=True)
     question_type = models.CharField(max_length=50, choices=QUESTION_TYPES)
     options = models.JSONField(blank=True, null=True)
-    correct_answer = models.JSONField()
+    correct_answer = models.JSONField(null=True, blank=True)
     template = models.CharField(default="1", max_length=20, blank=True, null=True)
     audio = models.FileField(upload_to="audio/", blank=True, null=True)
     content = models.JSONField(blank=True, null=True)
