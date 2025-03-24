@@ -96,7 +96,7 @@ SIMPLE_JWT = {
 }
 
 MIDDLEWARE = [
-    "vunderkids.middleware.RateLimitMiddleware",
+    # "vunderkids.middleware.RateLimitMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",

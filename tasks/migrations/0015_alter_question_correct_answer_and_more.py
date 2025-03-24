@@ -6,23 +6,23 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('tasks', '0014_merge_20250324_1956'),
+        ("tasks", "0014_merge_20250323_1613"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='question',
-            name='correct_answer',
+            model_name="question",
+            name="correct_answer",
             field=models.JSONField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='question',
-            name='question_text',
+            model_name="question",
+            name="question_text",
             field=models.TextField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='question',
-            name='title',
+            model_name="question",
+            name="title",
             field=models.CharField(blank=True, max_length=100, null=True),
         ),
     ]

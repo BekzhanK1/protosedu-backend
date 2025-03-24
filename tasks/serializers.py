@@ -149,8 +149,7 @@ class QuestionSerializer(serializers.ModelSerializer):
                     image = CanvasImage.objects.create(
                         question=question, image=image_file, image_id=image_id
                     )
-
-        question.options = options
+                    
         question.save()
 
     def _handle_images(self, question):
