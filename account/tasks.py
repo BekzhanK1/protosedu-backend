@@ -139,30 +139,32 @@ def send_activation_email_chunk(user_ids):
 
     if settings.STAGE == "PROD":
         frontend_url = settings.FRONTEND_URL
-        for user in users:
-            activation_url = f"{frontend_url}activate/{user.activation_token}/"
-            context = {
-                "user": user,
-                "activation_url": activation_url,
-                "password": passwords[user.id],
-            }
+        with get_connection() as connection:
+            for user in users:
+                activation_url = f"{frontend_url}activate/{user.activation_token}/"
+                context = {
+                    "user": user,
+                    "activation_url": activation_url,
+                    "password": passwords[user.id],
+                }
 
-            subject = "Activate your Protos education Account"
-            html_message = render_to_string("activation_email.html", context)
-            plain_message = strip_tags(html_message)
+                subject = "Activate your Protos education Account"
+                html_message = render_to_string("activation_email.html", context)
+                plain_message = strip_tags(html_message)
 
-            email = EmailMultiAlternatives(
-                subject,
-                plain_message,
-                settings.DEFAULT_FROM_EMAIL,
-                [user.email],
-            )
-            email.attach_alternative(html_message, "text/html")
-            try:
-                email.send()
-                logger.info(f"✅ Sent activation email to {user.email}")
-            except Exception as e:
-                logger.error(f"❌ Failed to send email to {user.email}: {e}")
+                email = EmailMultiAlternatives(
+                    subject,
+                    plain_message,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [user.email],
+                    connection=connection,
+                )
+                email.attach_alternative(html_message, "text/html")
+                try:
+                    email.send()
+                    logger.info(f"✅ Sent activation email to {user.email}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to send email to {user.email}: {e}")
     return f"Processed {len(users)} users."
 
 
