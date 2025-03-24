@@ -137,7 +137,7 @@ def send_activation_email_chunk(user_ids):
 
     print(passwords)
 
-    if settings.STAGE == "DEV":
+    if settings.STAGE == "PROD":
         frontend_url = settings.FRONTEND_URL
         for user in users:
             activation_url = f"{frontend_url}activate/{user.activation_token}/"
