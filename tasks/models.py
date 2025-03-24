@@ -86,7 +86,7 @@ class Content(models.Model):
         ordering = ["order"]
 
     def save(self, *args, **kwargs):
-        if self.order == 0:
+        if self.pk is None:
             last_order = Content.objects.filter(chapter=self.chapter).aggregate(
                 models.Max("order")
             )["order__max"]
