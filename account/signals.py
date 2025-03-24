@@ -4,7 +4,7 @@ from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 from account.models import Child, Parent, Student
 from subscription.models import Subscription
-from tasks.models import Chapter, Content, Course, Lesson, Section, Task
+from tasks.models import Chapter, Content, Course, Lesson, Section, Task, TaskCompletion
 
 
 User = get_user_model()
@@ -130,7 +130,7 @@ def invalidate_chapter_cache(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Task)
 @receiver(post_delete, sender=Task)
-def invalidate_task_cache(sender, instance, **kwargs):
+def invalidate_task_cache_if_task(sender, instance, **kwargs):
     """Clears the cached chapter when a task is added, updated, or deleted."""
     if instance.chapter:
         chapter_cache_key = f"chapter_{instance.chapter.id}"
@@ -156,13 +156,39 @@ def invalidate_task_cache(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Lesson)
 @receiver(post_delete, sender=Lesson)
-def invalidate_task_cache(sender, instance, **kwargs):
+def invalidate_task_cache_if_lesson(sender, instance, **kwargs):
     """Clears the cached chapter when a task is added, updated, or deleted."""
     if instance.chapter:
         chapter_cache_key = f"chapter_{instance.chapter.id}"
         chapters_cache_key = f"chapters_{instance.chapter.section.id}"
         section_cache_key = f"section_{instance.chapter.section.id}"
         sections_cache_key = f"sections_{instance.chapter.section.course.id}"
+        cache.delete_many(
+            [
+                chapter_cache_key,
+                chapters_cache_key,
+                section_cache_key,
+                sections_cache_key,
+            ]
+        )
+        print(
+            "Cache invalidated:",
+            chapter_cache_key,
+            chapters_cache_key,
+            section_cache_key,
+            sections_cache_key,
+        )
+
+
+@receiver(post_save, sender=TaskCompletion)
+@receiver(post_delete, sender=TaskCompletion)
+def invalidate_task_cache_if_task_completion(sender, instance, **kwargs):
+    """Clears the cached chapter when a task is added, updated, or deleted."""
+    if instance.task:
+        chapter_cache_key = f"chapter_{instance.task.chapter.id}"
+        chapters_cache_key = f"chapters_{instance.task.chapter.section.id}"
+        section_cache_key = f"section_{instance.task.chapter.section.id}"
+        sections_cache_key = f"sections_{instance.task.chapter.section.course.id}"
         cache.delete_many(
             [
                 chapter_cache_key,
