@@ -86,10 +86,11 @@ class Content(models.Model):
         ordering = ["order"]
 
     def save(self, *args, **kwargs):
-        last_order = Content.objects.filter(chapter=self.chapter).aggregate(
-            models.Max("order")
-        )["order__max"]
-        self.order = (last_order + 1) if last_order is not None else 1
+        if self.order == 0:
+            last_order = Content.objects.filter(chapter=self.chapter).aggregate(
+                models.Max("order")
+            )["order__max"]
+            self.order = (last_order + 1) if last_order is not None else 1
         super().save(*args, **kwargs)
 
     def __str__(self):
