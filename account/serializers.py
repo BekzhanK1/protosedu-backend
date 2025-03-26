@@ -411,6 +411,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
                     "stars": student.stars,
                     "is_superuser": self.user.is_superuser,
                     "is_staff": self.user.is_staff,
+                    "requires_password_change": self.user.requires_password_change,
                 }
             elif self.user.is_parent:
                 parent = self.user.parent

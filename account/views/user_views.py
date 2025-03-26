@@ -75,6 +75,7 @@ class CurrentUserView(APIView):
             "tasks_completed": tasks_completed,
             "has_subscription": subscription_active,
             "is_free_trial": is_free_trial,
+            "requires_password_change": user.requires_password_change,
         }
 
     def _get_parent_data(self, user, subscription_active, is_free_trial):
