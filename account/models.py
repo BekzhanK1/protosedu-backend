@@ -77,6 +77,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
+    requires_password_change = models.BooleanField(default=False)
     activation_token = models.UUIDField(editable=False, null=True, blank=True)
     activation_token_expires_at = models.DateTimeField(null=True, blank=True)
     reset_password_token = models.UUIDField(editable=False, null=True, blank=True)

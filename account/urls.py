@@ -41,6 +41,11 @@ urlpatterns = [
         "register-parent/", ParentRegistrationAPIView.as_view(), name="register-parent"
     ),
     path("activate/<uuid:token>/", ActivateAccount.as_view(), name="activate_account"),
+    path(
+        "change-required-password/",
+        ChangeRequiredPassword.as_view(),
+        name="change-required-password",
+    ),
     path("change-password/", ChangePassword.as_view(), name="change-password"),
     path(
         "reset-password/", RequestResetPassword.as_view(), name="request-reset-password"

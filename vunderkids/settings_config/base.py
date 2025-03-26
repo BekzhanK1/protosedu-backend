@@ -13,6 +13,11 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-default-secret-key")
 
 DEBUG = False
 
+
+ADMIN_EMAILS = [
+    email.strip() for email in os.getenv("ADMIN_EMAILS", "").split(",") if email.strip()
+]
+
 ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
@@ -42,7 +47,7 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
     ],
-    "DEFAULT_THROTTLE_RATES": {"anon": "100/day", "user": "1000/day"},
+    "DEFAULT_THROTTLE_RATES": {"anon": "100/minute", "user": "1000/minute"},
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
@@ -96,7 +101,7 @@ SIMPLE_JWT = {
 }
 
 MIDDLEWARE = [
-    # "vunderkids.middleware.RateLimitMiddleware",
+    "vunderkids.middleware.CheckIPAddressMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -230,16 +235,27 @@ LOGGING = {
         },
     },
     "handlers": {
-        "file": {
+        "activation": {
             "level": "DEBUG",
             "class": "logging.FileHandler",
             "filename": os.path.join(BASE_DIR, "logs", "activation_tasks.log"),
             "formatter": "verbose",
         },
+        "ip-address": {
+            "level": "DEBUG",
+            "class": "logging.FileHandler",
+            "filename": os.path.join(BASE_DIR, "logs", "ip_address.log"),
+            "formatter": "verbose",
+        },
     },
     "loggers": {
         "activation": {
-            "handlers": ["file"],
+            "handlers": ["activation"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "ip-address": {
+            "handlers": ["ip-address"],
             "level": "DEBUG",
             "propagate": False,
         },
@@ -249,3 +265,5 @@ LOGGING = {
 
 CELERY_BROKER_URL = "redis://redis:6379/0"
 CELERY_RESULT_BACKEND = "redis://redis:6379/0"
+
+STUDENT_DEFAULT_PASSWORD = os.getenv("STUDENT_DEFAULT_PASSWORD", "qwerty123")

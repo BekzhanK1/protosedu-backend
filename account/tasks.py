@@ -4,10 +4,16 @@ from datetime import timedelta
 from celery import group, shared_task
 from django.conf import settings
 from django.contrib.auth.hashers import make_password
-from django.core.mail import EmailMultiAlternatives, get_connection, send_mass_mail
+from django.core.mail import (
+    EmailMultiAlternatives,
+    get_connection,
+    send_mass_mail,
+    EmailMessage,
+)
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.html import strip_tags
+import pandas as pd
 
 from account.models import Parent, Student, User
 from account.utils import generate_password, render_email
@@ -27,20 +33,20 @@ def send_mass_html_mail(datatuple, fail_silently=False):
         msg.attach_alternative(html_content, "text/html")
         messages.append(msg)
 
-    try:
-        # Try sending all messages in bulk
-        connection = get_connection(fail_silently=fail_silently)
-        connection.send_messages(messages)
-    except Exception as e:
-        # If there is an issue, fallback to sending individually
-        if not fail_silently:
-            raise e
-        for message in messages:
-            try:
-                message.send(fail_silently=fail_silently)
-            except Exception as single_email_exception:
-                if not fail_silently:
-                    raise single_email_exception
+    # try:
+    #     # Try sending all messages in bulk
+    #     connection = get_connection(fail_silently=fail_silently)
+    #     connection.send_messages(messages)
+    # except Exception as e:
+    #     # If there is an issue, fallback to sending individually
+    #     if not fail_silently:
+    #         raise e
+    #     for message in messages:
+    #         try:
+    #             message.send(fail_silently=fail_silently)
+    #         except Exception as single_email_exception:
+    #             if not fail_silently:
+    #                 raise single_email_exception
 
     return len(messages)
 
@@ -49,55 +55,55 @@ def send_mass_html_mail(datatuple, fail_silently=False):
 def send_daily_email_to_all_students():
     students = Student.objects.all().select_related("user")
     datatuple = []
-    for student in students:
-        if student.user.is_active:  # Ensure we only email active users
-            html_content, text_content = render_email(
-                student.user.first_name,
-                student.user.last_name,
-                student.cups,
-                student.level,
-                frontend_url + "/dashboard",
-            )
-            msg = (
-                "Daily Update",
-                text_content,
-                html_content,
-                settings.DEFAULT_FROM_EMAIL,
-                [student.user.email],
-            )
-            datatuple.append(msg)
+    # for student in students:
+    #     if student.user.is_active:  # Ensure we only email active users
+    #         html_content, text_content = render_email(
+    #             student.user.first_name,
+    #             student.user.last_name,
+    #             student.cups,
+    #             student.level,
+    #             frontend_url + "/dashboard",
+    #         )
+    #         msg = (
+    #             "Daily Update",
+    #             text_content,
+    #             html_content,
+    #             settings.DEFAULT_FROM_EMAIL,
+    #             [student.user.email],
+    #         )
+    #         datatuple.append(msg)
 
-    if datatuple:
-        send_mass_html_mail(datatuple, fail_silently=False)
+    # if datatuple:
+    #     send_mass_html_mail(datatuple, fail_silently=False)
 
 
 @shared_task
 def send_daily_email_to_all_parents():
     parents = Parent.objects.all().select_related("user").prefetch_related("children")
     datatuple = []
-    for parent in parents:
-        if (
-            parent.user.is_active and parent.children.exists()
-        ):  # Ensure the parent is active and has children
-            context = {
-                "first_name": parent.user.first_name,
-                "last_name": parent.user.last_name,
-                "children": parent.children.all(),
-                "dashboard_url": frontend_url + "/dashboard",
-            }
-            html_content = render_to_string("parent_email_template.html", context)
-            text_content = strip_tags(html_content)
-            msg = (
-                "Your Children’s Daily Update",
-                text_content,
-                html_content,
-                settings.DEFAULT_FROM_EMAIL,
-                [parent.user.email],
-            )
-            datatuple.append(msg)
+    # for parent in parents:
+    #     if (
+    #         parent.user.is_active and parent.children.exists()
+    #     ):  # Ensure the parent is active and has children
+    #         context = {
+    #             "first_name": parent.user.first_name,
+    #             "last_name": parent.user.last_name,
+    #             "children": parent.children.all(),
+    #             "dashboard_url": frontend_url + "/dashboard",
+    #         }
+    #         html_content = render_to_string("parent_email_template.html", context)
+    #         text_content = strip_tags(html_content)
+    #         msg = (
+    #             "Your Children’s Daily Update",
+    #             text_content,
+    #             html_content,
+    #             settings.DEFAULT_FROM_EMAIL,
+    #             [parent.user.email],
+    #         )
+    #         datatuple.append(msg)
 
-    if datatuple:
-        send_mass_html_mail(datatuple, fail_silently=False)
+    # if datatuple:
+    #     send_mass_html_mail(datatuple, fail_silently=False)
 
 
 BATCH_SIZE = 100
@@ -106,10 +112,10 @@ BATCH_SIZE = 100
 @shared_task
 def send_mass_activation_email(user_ids):
     """Splits users into chunks and runs parallel tasks."""
-    chunks = [user_ids[i : i + BATCH_SIZE] for i in range(0, len(user_ids), BATCH_SIZE)]
-    task_group = group(send_activation_email_chunk.s(chunk) for chunk in chunks)
-    task_group.apply_async()
-    return f"Queued {len(chunks)} parallel tasks for {len(user_ids)} users."
+    # chunks = [user_ids[i : i + BATCH_SIZE] for i in range(0, len(user_ids), BATCH_SIZE)]
+    # task_group = group(send_activation_email_chunk.s(chunk) for chunk in chunks)
+    # task_group.apply_async()
+    # return f"Queued {len(chunks)} parallel tasks for {len(user_ids)} users."
 
 
 @shared_task
@@ -137,34 +143,36 @@ def send_activation_email_chunk(user_ids):
 
     print(passwords)
 
-    if settings.STAGE == "PROD":
-        frontend_url = settings.FRONTEND_URL
-        with get_connection() as connection:
-            for user in users:
-                activation_url = f"{frontend_url}activate/{user.activation_token}/"
-                context = {
-                    "user": user,
-                    "activation_url": activation_url,
-                    "password": passwords[user.id],
-                }
+    pass
 
-                subject = "Activate your Protos education Account"
-                html_message = render_to_string("activation_email.html", context)
-                plain_message = strip_tags(html_message)
+    # if settings.STAGE == "PROD":
+    #     frontend_url = settings.FRONTEND_URL
+    #     with get_connection() as connection:
+    #         for user in users:
+    #             activation_url = f"{frontend_url}activate/{user.activation_token}/"
+    #             context = {
+    #                 "user": user,
+    #                 "activation_url": activation_url,
+    #                 "password": passwords[user.id],
+    #             }
 
-                email = EmailMultiAlternatives(
-                    subject,
-                    plain_message,
-                    settings.DEFAULT_FROM_EMAIL,
-                    [user.email],
-                    connection=connection,
-                )
-                email.attach_alternative(html_message, "text/html")
-                try:
-                    email.send()
-                    logger.info(f"✅ Sent activation email to {user.email}")
-                except Exception as e:
-                    logger.error(f"❌ Failed to send email to {user.email}: {e}")
+    #             subject = "Activate your Protos education Account"
+    #             html_message = render_to_string("activation_email.html", context)
+    #             plain_message = strip_tags(html_message)
+
+    #             email = EmailMultiAlternatives(
+    #                 subject,
+    #                 plain_message,
+    #                 settings.DEFAULT_FROM_EMAIL,
+    #                 [user.email],
+    #                 connection=connection,
+    #             )
+    #             email.attach_alternative(html_message, "text/html")
+    #             try:
+    #                 email.send()
+    #                 logger.info(f"✅ Sent activation email to {user.email}")
+    #             except Exception as e:
+    #                 logger.error(f"❌ Failed to send email to {user.email}: {e}")
     return f"Processed {len(users)} users."
 
 
@@ -275,3 +283,20 @@ def delete_expired_subscriptions():
         subscription.delete()
 
     return f"Deleted {count} expired subscriptions"
+
+
+@shared_task
+def send_user_credentials_to_admins(file_path, school_name):
+    subject = f"Credentials for {school_name} "
+    body = "Attached is the Excel file containing newly generated user credentials."
+
+    email = EmailMessage(
+        subject=subject,
+        body=body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=settings.ADMIN_EMAILS,
+    )
+    email.attach_file(file_path)
+    email.send(fail_silently=False)
+
+    return f"User credentials file sent to {settings.ADMIN_EMAILS}"

@@ -58,6 +58,28 @@ class ActivateAccount(APIView):
             )
 
 
+class ChangeRequiredPassword(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        password = request.data["password"]
+        try:
+            print("password:", password)
+            user.requires_password_change = False
+            user.set_password(password)
+            user.save()
+            return Response(
+                {"message": "Successfully changed password"},
+                status=status.HTTP_200_OK,
+            )
+        except Exception:
+            return Response(
+                {"message": "Error during password change"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
 class ChangePassword(APIView):
     permission_classes = [IsAuthenticated]
 

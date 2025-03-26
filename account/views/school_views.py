@@ -1,5 +1,6 @@
-import uuid
+import os
 from django.db import transaction
+from datetime import datetime
 
 import pandas as pd
 from rest_framework import status, viewsets
@@ -9,9 +10,15 @@ from rest_framework.response import Response
 from account.models import Class, School, Student, User
 from account.permissions import IsSuperUser
 from account.serializers import SchoolSerializer, SupervisorRegistrationSerializer
+from subscription.models import Plan, Subscription
 
-from ..tasks import send_mass_activation_email
+from ..tasks import send_mass_activation_email, send_user_credentials_to_admins
 from ..utils import cyrillic_to_username
+
+from django.conf import settings
+
+
+DEFAULT_PASSWORD = settings.STUDENT_DEFAULT_PASSWORD
 
 
 class SchoolViewSet(viewsets.ModelViewSet):
@@ -147,6 +154,7 @@ class SchoolViewSet(viewsets.ModelViewSet):
             all_students.extend(sheet_students)
 
         new_user_ids = []
+        user_credentials = []
 
         try:
             with transaction.atomic():
@@ -162,13 +170,38 @@ class SchoolViewSet(viewsets.ModelViewSet):
                             "first_name": student["first_name"],
                             "last_name": student["last_name"],
                             "role": "student",
-                            "is_active": False,
+                            "is_active": True,
+                            "requires_password_change": True,
                         },
                     )
                     if created:
-                        user.activation_token = uuid.uuid4()
+                        plan, _ = Plan.objects.get_or_create(duration="annual")
+                        Subscription.objects.create(user=user, plan=plan)
+                        user.set_password(DEFAULT_PASSWORD)
                         user.save()
                         new_user_ids.append(user.pk)
+                        user_credentials.append(
+                            {
+                                "Фамилия": user.last_name,
+                                "Имя": user.first_name,
+                                "Имя пользователя": user.username,
+                                "Пароль": DEFAULT_PASSWORD,
+                                "Email": user.email,
+                                "Класс": f"{student['grade']}{student['section']}",
+                            }
+                        )
+
+                    else:
+                        user_credentials.append(
+                            {
+                                "Фамилия": user.last_name,
+                                "Имя": user.first_name,
+                                "Имя пользователя": user.username,
+                                "Пароль": "Already exists",
+                                "Email": user.email,
+                                "Класс": f"{student['grade']}{student['section']}",
+                            }
+                        )
 
                     grade = int(student["grade"])
                     section = student["section"]
@@ -184,8 +217,23 @@ class SchoolViewSet(viewsets.ModelViewSet):
                         grade=grade,
                     )
 
-            if new_user_ids:
-                send_mass_activation_email.delay(new_user_ids)
+            if user_credentials:
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H%M")
+                filename = f"credentials_{school.name}-{school.city}_{timestamp}.xlsx"
+                df = pd.DataFrame(user_credentials)
+                df = df.sort_values(by="Фамилия")
+
+                credentials_dir = os.path.join(
+                    settings.MEDIA_ROOT, "school-credentials"
+                )
+                os.makedirs(credentials_dir, exist_ok=True)
+
+                credentials_file = os.path.join(credentials_dir, filename)
+                df.to_excel(credentials_file, index=False)
+                send_user_credentials_to_admins.delay(credentials_file, school.name)
+
+            # if new_user_ids:
+            #     send_mass_activation_email.delay(new_user_ids)
 
             return Response(
                 {
