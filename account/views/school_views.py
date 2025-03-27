@@ -158,6 +158,7 @@ class SchoolViewSet(viewsets.ModelViewSet):
         user_credentials = []
 
         try:
+            hashed_password = make_password(DEFAULT_PASSWORD)
             with transaction.atomic():
                 for student in all_students:
                     school = School.objects.get(pk=school_id)
@@ -178,7 +179,6 @@ class SchoolViewSet(viewsets.ModelViewSet):
                     if created:
                         plan, _ = Plan.objects.get_or_create(duration="annual")
                         Subscription.objects.create(user=user, plan=plan)
-                        hashed_password = make_password(DEFAULT_PASSWORD)
                         user.password = hashed_password
                         user.save()
                         new_user_ids.append(user.pk)
