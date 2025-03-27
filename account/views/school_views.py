@@ -16,6 +16,7 @@ from ..tasks import send_mass_activation_email, send_user_credentials_to_admins
 from ..utils import cyrillic_to_username
 
 from django.conf import settings
+from django.contrib.auth.hashers import make_password
 
 
 DEFAULT_PASSWORD = settings.STUDENT_DEFAULT_PASSWORD
@@ -177,7 +178,8 @@ class SchoolViewSet(viewsets.ModelViewSet):
                     if created:
                         plan, _ = Plan.objects.get_or_create(duration="annual")
                         Subscription.objects.create(user=user, plan=plan)
-                        user.set_password(DEFAULT_PASSWORD)
+                        hashed_password = make_password(DEFAULT_PASSWORD)
+                        user.password = hashed_password
                         user.save()
                         new_user_ids.append(user.pk)
                         user_credentials.append(
