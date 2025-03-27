@@ -32,3 +32,4 @@ google-crc32c
 google-resumable-media
 googleapis-common-protos
 drf_spectacular
+sentry-sdk[django]

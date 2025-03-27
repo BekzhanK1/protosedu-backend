@@ -14,6 +14,19 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-default-secret-key")
 DEBUG = False
 
 
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+
+sentry_sdk.init(
+    dsn="https://59ec37859ff77bf85e8aeaf1b5465136@o4509047659036672.ingest.de.sentry.io/4509047703666768",
+    integrations=[DjangoIntegration()],
+    traces_sample_rate=1.0,  # optional: for performance monitoring
+    send_default_pii=True,  # optional: if you want to send user info
+    _experiments={
+        "continuous_profiling_auto_start": True,
+    },
+)
+
 ADMIN_EMAILS = [
     email.strip() for email in os.getenv("ADMIN_EMAILS", "").split(",") if email.strip()
 ]
@@ -228,6 +241,10 @@ else:
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "root": {
+        "handlers": ["sentry"],
+        "level": "ERROR",
+    },
     "formatters": {
         "verbose": {
             "format": "[{asctime}] {levelname} {name} - {message}",
@@ -247,6 +264,10 @@ LOGGING = {
             "filename": os.path.join(BASE_DIR, "logs", "ip_address.log"),
             "formatter": "verbose",
         },
+        "sentry": {
+            "level": "ERROR",  # Only capture warnings/errors
+            "class": "sentry_sdk.integrations.logging.EventHandler",
+        },
     },
     "loggers": {
         "activation": {
@@ -255,9 +276,14 @@ LOGGING = {
             "propagate": False,
         },
         "ip-address": {
-            "handlers": ["ip-address"],
+            "handlers": ["ip-address", "sentry"],
             "level": "DEBUG",
             "propagate": False,
+        },
+        "django": {
+            "handlers": ["sentry"],
+            "level": "ERROR",
+            "propagate": True,
         },
     },
 }
