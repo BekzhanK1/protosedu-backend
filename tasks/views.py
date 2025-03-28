@@ -35,7 +35,7 @@ from .serializers import (
 )
 
 GAME_COST_CONST = 20
-CACHE_TIMEOUT = 600
+CACHE_TIMEOUT = 1
 
 
 class CourseViewSet(viewsets.ModelViewSet):
