@@ -136,3 +136,13 @@ def cyrillic_to_username(text):
     latin_text = re.sub(r"[^a-zA-Z0-9_]", ".", latin_text)
 
     return latin_text.lower()
+
+
+def get_cache_key(prefix, user, child_id=None, **kwargs):
+    key = f"{prefix}_user_{user.id}"
+    if child_id:
+        key += f"_child_{child_id}"
+    for k, v in kwargs.items():
+        key += f"_{k}_{v}"
+    print("[get_cache_key]", key)
+    return key

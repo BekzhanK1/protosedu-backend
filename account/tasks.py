@@ -3,6 +3,8 @@ from datetime import timedelta
 
 from celery import group, shared_task
 from django.conf import settings
+from django.core.cache import cache
+from account.utils import get_cache_key
 from django.contrib.auth.hashers import make_password
 from django.core.mail import (
     EmailMultiAlternatives,
@@ -15,7 +17,7 @@ from django.utils import timezone
 from django.utils.html import strip_tags
 import pandas as pd
 
-from account.models import Parent, Student, User
+from account.models import Child, Parent, Student, User
 from account.utils import generate_password, render_email
 from subscription.models import Subscription
 import logging
@@ -300,3 +302,62 @@ def send_user_credentials_to_admins(file_path, school_name):
     email.send(fail_silently=False)
 
     return f"User credentials file sent to {settings.ADMIN_EMAILS}"
+
+
+@shared_task
+def course_invalidate_cache(
+    course_id, prefix, item_id=None, user_id=None, child_id=None
+):
+    try:
+        if user_id:
+            user = User.objects.get(pk=user_id)
+            _invalidate_keys(user, child_id, course_id, prefix, item_id)
+        else:
+            for user in User.objects.all():
+                if hasattr(user, "student"):
+                    _invalidate_keys(user, None, course_id, prefix, item_id)
+                elif hasattr(user, "parent"):
+                    children = Child.objects.filter(parent=user.parent)
+                    for child in children:
+                        _invalidate_keys(user, child.id, course_id, prefix, item_id)
+                else:
+                    _invalidate_keys(user, None, course_id, prefix, item_id)
+    except Exception as e:
+        print(f"[course_invalidate_cache] Error: {e}")
+
+
+def _invalidate_keys(user, child_id, course_id, prefix, item_id):
+    if prefix == "course":
+        list_key = get_cache_key(prefix + "s", user, child_id)
+    else:
+        list_key = get_cache_key(prefix + "s", user, child_id, course=course_id)
+    cache.delete(list_key)
+    print("Cache invalidated:", list_key)
+
+    if item_id:
+        detail_key = get_cache_key(prefix, user, child_id, id=item_id)
+        cache.delete(detail_key)
+        print("Cache invalidated:", detail_key)
+
+
+@shared_task
+def courses_invalidate_cache():
+    print("Invalidating courses cache...")
+    try:
+        for user in User.objects.all():
+            if hasattr(user, "student"):
+                key = get_cache_key("courses", user)
+                cache.delete(key)
+                print("Cache invalidated:", key)
+            elif hasattr(user, "parent"):
+                children = Child.objects.filter(parent=user.parent)
+                for child in children:
+                    key = get_cache_key("courses", user, child.id)
+                    cache.delete(key)
+                    print("Cache invalidated:", key)
+            else:
+                key = get_cache_key("courses", user)
+                cache.delete(key)
+                print("Cache invalidated:", key)
+    except Exception as e:
+        print(f"[invalidate_courses_cache] Skipped: {e}")

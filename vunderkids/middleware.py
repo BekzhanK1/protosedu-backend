@@ -14,6 +14,9 @@ class CheckIPAddressMiddleware:
     def __call__(self, request):
         ip = request.META.get("REMOTE_ADDR")
         endpoint = request.path
+        if endpoint == "/api/logs/":
+            return self.get_response(request)
+
         logger.info(f"IP Address: {ip}, Endpoint: {endpoint}")
 
         response = self.get_response(request)

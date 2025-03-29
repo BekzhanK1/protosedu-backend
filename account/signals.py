@@ -3,6 +3,8 @@ from django.core.cache import cache
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 from account.models import Child, Parent, Student
+from account.tasks import course_invalidate_cache, courses_invalidate_cache
+from account.utils import get_cache_key
 from subscription.models import Subscription
 from tasks.models import Chapter, Content, Course, Lesson, Section, Task, TaskCompletion
 
@@ -66,146 +68,108 @@ def clear_child_cache(sender, instance, **kwargs):
     invalidate_child_cache(instance.pk)
 
 
-@receiver(post_save, sender=Course)
-@receiver(post_delete, sender=Course)
+@receiver([post_save, post_delete], sender=Course)
 def invalidate_courses_cache(sender, instance, **kwargs):
-    print("Invalidating courses cache...")
-
-    cache_keys = [
-        f"courses_{grade}_{lang}"
-        for grade in range(-1, 5)
-        for lang in ["ru", "en", "kz"]
-    ]
-    cache_keys.append("courses_all")
-
-    for key in cache_keys:
-        cache.delete(key)
-
-    print("Cache invalidated:", cache_keys)
-
-
-@receiver(post_save, sender=Section)
-@receiver(post_delete, sender=Section)
-def invalidate_course_cache_on_section_change(sender, instance, **kwargs):
-    """Clears the cached course when a section is added, updated, or deleted."""
     try:
-        course = instance.course
-        if course:
-            cache_key = f"course_{course.id}"
-            cache.delete(cache_key)
-            print("Cache invalidated:", cache_key)
+        courses_invalidate_cache.delay()
+        course_invalidate_cache.delay(
+            instance.pk,
+            "course",
+            item_id=instance.pk,
+        )
     except Exception as e:
-        print(f"[invalidate_course_cache_on_section_change] Skipped due to error: {e}")
+        print(f"Exception in invalidate_courses_cache: {e}")
 
 
 @receiver([post_save, post_delete], sender=Section)
 def invalidate_sections_cache(sender, instance, **kwargs):
-    """Clears the cached sections and course when a section is modified."""
-    try:
-        course = instance.course
-        if course:
-            course_cache_key = f"course_{course.id}"
-            sections_cache_key = f"sections_{course.id}"
-            cache.delete_many([course_cache_key, sections_cache_key])
-            print("Cache invalidated:", course_cache_key, sections_cache_key)
-    except Exception as e:
-        print(f"[invalidate_sections_cache] Skipped due to error: {e}")
-
-
-@receiver(post_save, sender=Chapter)
-@receiver(post_delete, sender=Chapter)
-def invalidate_section_cache_on_chapter_change(sender, instance, **kwargs):
-    """Clears the cached chapters when a chapter is added, updated, or deleted."""
-    try:
-        section = instance.section
-        if section:
-            section_key = f"section_{section.id}"
-            course_key = f"sections_{section.course.id}" if section.course else None
-            cache.delete(section_key)
-            if course_key:
-                cache.delete(course_key)
-            print("Cache invalidated:", section_key, course_key)
-    except Exception as e:
-        print(f"[invalidate_section_cache_on_chapter_change] Skipped due to error: {e}")
+    if instance.course:
+        course_invalidate_cache.delay(
+            instance.course.pk,
+            "course",
+            item_id=instance.course.pk,
+        )
+        course_invalidate_cache.delay(
+            instance.course.pk,
+            "section",
+            item_id=instance.pk,
+        )
 
 
 @receiver([post_save, post_delete], sender=Chapter)
-def invalidate_chapter_cache(sender, instance, **kwargs):
-    """Clears the cached chapter and related section when a chapter changes."""
-    try:
-        section = instance.section
-        if section:
-            section_cache_key = f"section_{section.id}"
-            chapters_cache_key = f"chapters_{section.id}"
-            sections_cache_key = (
-                f"sections_{section.course.id}" if section.course else None
-            )
-
-            cache_keys = [section_cache_key, chapters_cache_key]
-            if sections_cache_key:
-                cache_keys.append(sections_cache_key)
-
-            cache.delete_many(cache_keys)
-            print("Cache invalidated:", *cache_keys)
-    except Exception as e:
-        print(f"[invalidate_chapter_cache] Skipped due to error: {e}")
+def invalidate_chapters_cache(sender, instance, **kwargs):
+    section = instance.section
+    if section and section.course:
+        course_invalidate_cache.delay(
+            section.course.pk,
+            "section",
+            item_id=section.pk,
+        )
+        course_invalidate_cache.delay(
+            section.course.pk,
+            "chapter",
+            item_id=instance.pk,
+        )
 
 
-@receiver(post_save, sender=Task)
-@receiver(post_delete, sender=Task)
-def invalidate_task_cache_if_task(sender, instance, **kwargs):
-    try:
-        chapter = instance.chapter
-        section = chapter.section
-        course = section.course
-
-        cache_keys = [
-            f"chapter_{chapter.id}",
-            f"chapters_{section.id}",
-            f"section_{section.id}",
-            f"sections_{course.id}",
-        ]
-        cache.delete_many(cache_keys)
-        print("Cache invalidated:", *cache_keys)
-    except Exception as e:
-        print(f"[invalidate_task_cache_if_task] Skipped due to error: {e}")
+@receiver([post_save, post_delete], sender=Task)
+def invalidate_tasks_cache(sender, instance, **kwargs):
+    chapter = instance.chapter
+    section = chapter.section
+    course = section.course
+    if course:
+        course_invalidate_cache.delay(
+            course.pk,
+            "chapter",
+            item_id=chapter.pk,
+        )
+        course_invalidate_cache.delay(
+            course.pk,
+            "section",
+            item_id=section.pk,
+        )
 
 
-@receiver(post_save, sender=Lesson)
-@receiver(post_delete, sender=Lesson)
-def invalidate_task_cache_if_lesson(sender, instance, **kwargs):
-    try:
-        chapter = instance.chapter
-        section = chapter.section
-        course = section.course
-
-        cache_keys = [
-            f"chapter_{chapter.id}",
-            f"chapters_{section.id}",
-            f"section_{section.id}",
-            f"sections_{course.id}",
-        ]
-        cache.delete_many(cache_keys)
-        print("Cache invalidated:", *cache_keys)
-    except Exception as e:
-        print(f"[invalidate_task_cache_if_lesson] Skipped due to error: {e}")
+@receiver([post_save, post_delete], sender=Lesson)
+def invalidate_lessons_cache(sender, instance, **kwargs):
+    chapter = instance.chapter
+    section = chapter.section
+    course = section.course
+    if course:
+        course_invalidate_cache.delay(
+            course.pk,
+            "chapter",
+            item_id=chapter.pk,
+        )
+        course_invalidate_cache.delay(
+            course.pk,
+            "section",
+            item_id=section.pk,
+        )
 
 
-@receiver(post_save, sender=TaskCompletion)
-def invalidate_task_cache_if_task_completion(sender, instance, **kwargs):
-    try:
-        task = instance.task
-        chapter = task.chapter
-        section = chapter.section
-        course = section.course
+@receiver([post_save, post_delete], sender=TaskCompletion)
+def invalidate_task_completion_cache(sender, instance, **kwargs):
+    task = instance.task
+    chapter = task.chapter
+    section = chapter.section
+    course = section.course
 
-        cache_keys = [
-            f"chapter_{chapter.id}",
-            f"chapters_{section.id}",
-            f"section_{section.id}",
-            f"sections_{course.id}",
-        ]
-        cache.delete_many(cache_keys)
-        print("Cache invalidated:", *cache_keys)
-    except Exception as e:
-        print(f"[invalidate_task_cache_if_task_completion] Skipped due to error: {e}")
+    if not course:
+        return
+
+    user_id = instance.user.id if instance.user else instance.child.parent.user.id
+    child_id = instance.child.id if instance.child else None
+
+    for prefix, obj in [
+        ("course", course),
+        ("section", section),
+        ("chapter", chapter),
+    ]:
+        course_invalidate_cache.delay(
+            course_id=course.pk,
+            prefix=prefix,
+            item_id=obj.pk,
+            user_id=user_id,
+            child_id=child_id,
+        )
