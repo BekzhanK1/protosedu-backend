@@ -3,8 +3,7 @@ from django.core.cache import cache
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 from account.models import Child, Parent, Student
-from account.tasks import course_invalidate_cache, courses_invalidate_cache
-from account.utils import get_cache_key
+from account.tasks import course_invalidate_cache
 from subscription.models import Subscription
 from tasks.models import Chapter, Content, Course, Lesson, Section, Task, TaskCompletion
 
@@ -71,7 +70,6 @@ def clear_child_cache(sender, instance, **kwargs):
 @receiver([post_save, post_delete], sender=Course)
 def invalidate_courses_cache(sender, instance, **kwargs):
     try:
-        courses_invalidate_cache.delay()
         course_invalidate_cache.delay(
             instance.pk,
             "course",
