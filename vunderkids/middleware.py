@@ -12,7 +12,7 @@ class CheckIPAddressMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        ip = request.META.get("REMOTE_ADDR")
+        ip = request.META.get("HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR"))
         endpoint = request.path
         if endpoint == "/api/logs/":
             return self.get_response(request)
