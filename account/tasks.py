@@ -338,26 +338,3 @@ def _invalidate_keys(user, child_id, course_id, prefix, item_id):
         detail_key = get_cache_key(prefix, user, child_id, id=item_id)
         cache.delete(detail_key)
         print("Cache invalidated:", detail_key)
-
-
-@shared_task
-def courses_invalidate_cache():
-    print("Invalidating courses cache...")
-    try:
-        for user in User.objects.all():
-            if hasattr(user, "student"):
-                key = get_cache_key("courses", user)
-                cache.delete(key)
-                print("Cache invalidated:", key)
-            elif hasattr(user, "parent"):
-                children = Child.objects.filter(parent=user.parent)
-                for child in children:
-                    key = get_cache_key("courses", user, child.id)
-                    cache.delete(key)
-                    print("Cache invalidated:", key)
-            else:
-                key = get_cache_key("courses", user)
-                cache.delete(key)
-                print("Cache invalidated:", key)
-    except Exception as e:
-        print(f"[invalidate_courses_cache] Skipped: {e}")
