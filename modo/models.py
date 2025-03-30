@@ -17,7 +17,7 @@ class Test(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     order = models.IntegerField(default=0)
-    test_type = models.CharField(max_length=4, choices=TEST_TYPE, default="modo")
+    test_type = models.CharField(max_length=20, choices=TEST_TYPE, default="modo")
 
     class Meta:
         ordering = ["order"]
