@@ -3,6 +3,8 @@ from django.db import models
 TEST_TYPE = [
     ("modo", "MODO"),
     ("ent", "ENT"),
+    ("diagnostic", "Diagnostic"),
+    ("other", "Other"),
 ]
 
 CONTENT_TYPE = [
