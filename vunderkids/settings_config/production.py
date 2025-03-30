@@ -5,13 +5,13 @@ DEBUG = True
 ALLOWED_HOSTS = [
     "https://protosedu.kz",
     "https://www.protosedu.kz",
-    "http://85.198.90.24",
+    "http://85.198.89.17",
     "http://localhost",
     "http://127.0.0.1",
     "protosedu.kz",
     "www.protosedu.kz",
     "api.protosedu.kz",
-    "85.198.90.24",
+    "85.198.89.17",
 ]
 
 
