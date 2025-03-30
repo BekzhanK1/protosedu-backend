@@ -20,7 +20,9 @@ class Course(models.Model):
         max_length=50, choices=COURSE_TYPES, default="regular"
     )
     grade = models.IntegerField(choices=GRADE_CHOICES)
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True
+    )
     language = models.CharField(max_length=50, choices=LANGUAGE_CHOICES, default="ru")
 
     class Meta:
@@ -124,11 +126,23 @@ class Question(models.Model):
     title = models.CharField(max_length=100, null=True, blank=True)
     question_text = models.TextField(null=True, blank=True)
     question_type = models.CharField(max_length=50, choices=QUESTION_TYPES)
+    order = models.IntegerField(default=0)
     options = models.JSONField(blank=True, null=True)
     correct_answer = models.JSONField(null=True, blank=True)
     template = models.CharField(default="1", max_length=20, blank=True, null=True)
     audio = models.FileField(upload_to="audio/", blank=True, null=True)
     content = models.JSONField(blank=True, null=True)
+
+    class Meta:
+        ordering = ["order"]
+
+    def save(self, *args, **kwargs):
+        if self.pk is None:
+            last_order = Question.objects.filter(task=self.task).aggregate(
+                models.Max("order")
+            )["order__max"]
+            self.order = (last_order + 1) if last_order is not None else 1
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"[Task: {self.task}] {self.question_text}"

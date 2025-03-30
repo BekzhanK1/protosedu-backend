@@ -598,6 +598,56 @@ class QuestionViewSet(viewsets.ModelViewSet):
                 "is_correct": False,
             }
 
+    @action(
+        detail=False,
+        methods=["patch"],
+        permission_classes=[IsSuperUserOrStaffOrReadOnly],
+    )
+    def update_questions(
+        self, request, course_pk=None, section_pk=None, chapter_pk=None, task_pk=None
+    ):
+        questions_data = request.data.get("questions")
+        if not questions_data:
+            return Response(
+                {"detail": "Questions data is missing."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+
+                questions_ids = [
+                    question_data["id"] for question_data in questions_data
+                ]
+                questions = Question.objects.in_bulk(questions_ids)
+
+                if len(questions) != len(questions_ids):
+                    return Response(
+                        {"detail": "Some questions do not exist."},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+
+                for question_data in questions_data:
+                    question = questions.get(question_data["id"])
+
+                    if question:
+                        question.order = question_data.get("order", question.order)
+                Question.objects.bulk_update(
+                    questions.values(),
+                    [
+                        "order",
+                    ],
+                )
+
+            return Response(
+                {"detail": "Question updated successfully."}, status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {"detail": "Error during updating contents."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
 
 class PlayGameView(APIView):
     permission_classes = [AllowAny]
