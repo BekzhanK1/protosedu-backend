@@ -113,9 +113,8 @@ class RequestResetPassword(APIView):
 
     def post(self, request):
         username = request.data.get("username")
-        email = request.data.get("email")
-        if email and username:
-            user = get_object_or_404(User, email=email, username=username)
+        if username:
+            user = get_object_or_404(User, username=username)
             user.reset_password_token = uuid.uuid4()
             user.reset_password_token_expires_at = timezone.now() + timedelta(days=1)
             user.save()
