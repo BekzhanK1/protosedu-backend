@@ -59,7 +59,7 @@ class SupervisorRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["email", "first_name", "last_name", "phone_number"]
+        fields = ["username", "email", "first_name", "last_name", "phone_number"]
 
     def validate_email(self, value):
         try:
