@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "subscription",
     "modo",
     "olympiad",
+    "documents",
     "storages",
 ]
 

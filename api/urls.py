@@ -6,6 +6,7 @@ urlpatterns = [
     path("", include("tasks.urls")),
     path("", include("subscription.urls")),
     path("", include("olympiad.urls")),
+    path("", include("documents.urls")),
     path("modo/", include("modo.urls")),
     path("logs/", stream_log),
 ]
