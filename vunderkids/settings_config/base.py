@@ -13,6 +13,9 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-default-secret-key")
 
 DEBUG = False
 
+CACHE_STAGE = os.getenv("CACHE_STAGE", "docker")
+CELERY_STAGE = os.getenv("CELERY_STAGE", "docker")
+
 
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -65,12 +68,25 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": "redis://redis:6379/1",
+
+if CACHE_STAGE == "docker":
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": "redis://redis:6379/1",
+        }
     }
-}
+elif CACHE_STAGE == "local":
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "unique-snowflake",
+        }
+    }
+else:
+    raise SystemError(
+        "CACHE_STAGE must be either 'docker' or 'local'. Please check your .env file."
+    )
 
 
 SPECTACULAR_SETTINGS = {
@@ -172,7 +188,7 @@ AWS_ACCESS_KEY_ID = os.getenv("YANDEX_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("YANDEX_SECRET_ACCESS_KEY")
 AWS_STORAGE_BUCKET_NAME = os.getenv("YANDEX_BUCKET_NAME")
 AWS_S3_ENDPOINT_URL = "https://storage.yandexcloud.kz"
-AWS_S3_REGION_NAME = "ru-central1"
+AWS_S3_REGION_NAME = "kz1"
 AWS_S3_SIGNATURE_VERSION = "s3"
 AWS_S3_ADDRESSING_STYLE = "path"
 
@@ -186,7 +202,17 @@ STATIC_URL = "/staticfiles/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.storage.yandexcloud.kz/media/"
-DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+# DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -290,7 +316,15 @@ LOGGING = {
 }
 
 
-CELERY_BROKER_URL = "redis://redis:6379/0"
-CELERY_RESULT_BACKEND = "redis://redis:6379/0"
+if CELERY_STAGE == "docker":
+    CELERY_BROKER_URL = "redis://redis:6379/0"
+    CELERY_RESULT_BACKEND = "redis://redis:6379/0"
+elif CELERY_STAGE == "local":
+    CELERY_BROKER_URL = "sqla+sqlite:///celerydb.sqlite"
+    CELERY_RESULT_BACKEND = "db+sqlite:///celerydb.sqlite"
+else:
+    raise SystemError(
+        "CELERY_STAGE must be either 'docker' or 'local'. Please check your .env file."
+    )
 
 STUDENT_DEFAULT_PASSWORD = os.getenv("STUDENT_DEFAULT_PASSWORD", "qwerty123")
