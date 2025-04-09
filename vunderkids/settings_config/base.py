@@ -79,8 +79,8 @@ if CACHE_STAGE == "docker":
 elif CACHE_STAGE == "local":
     CACHES = {
         "default": {
-            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-            "LOCATION": "unique-snowflake",
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": "redis://localhost:6379/1",
         }
     }
 else:
