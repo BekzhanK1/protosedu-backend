@@ -9,10 +9,10 @@ DOCUMENT_TYPES = (("ktp", "KTP"),)
 class Subject(models.Model):
     name = models.CharField(max_length=255, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
-    grade = models.CharField(
+    grade = models.IntegerField(
         max_length=10,
         choices=GRADE_CHOICES,
-        default="1",
+        default=1,
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
