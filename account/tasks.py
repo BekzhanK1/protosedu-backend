@@ -1,5 +1,6 @@
 import uuid
 from datetime import timedelta
+import random
 
 from celery import group, shared_task
 from django.conf import settings
@@ -17,7 +18,15 @@ from django.utils import timezone
 from django.utils.html import strip_tags
 import pandas as pd
 
-from account.models import Child, Parent, Student, User
+from account.models import (
+    Child,
+    DailyMessage,
+    MotivationalPhrase,
+    Parent,
+    Student,
+    User,
+    LANGUAGE_CHOICES,
+)
 from account.utils import generate_password, render_email
 from subscription.models import Subscription
 import logging
@@ -338,3 +347,33 @@ def _invalidate_keys(user, child_id, course_id, prefix, item_id):
         detail_key = get_cache_key(prefix, user, child_id, id=item_id)
         cache.delete(detail_key)
         print("Cache invalidated:", detail_key)
+
+
+@shared_task
+def generate_daily_messages():
+    today = timezone.now().date()
+
+    languages = [lang[0] for lang in LANGUAGE_CHOICES]
+
+    for lang in languages:
+        phrases = MotivationalPhrase.objects.filter(language=lang, is_active=True)
+
+        if not phrases.exists():
+            print(f"No phrases found for language: {lang}")
+            continue
+
+        selected_phrase = random.choice(phrases)
+        daily_message, created = DailyMessage.objects.update_or_create(
+            date=today,
+            language=lang,
+            defaults={"message": selected_phrase.text, "is_active": True},
+        )
+
+        if created:
+            print(
+                f"Created daily message for {lang} on {today}: {selected_phrase.text}"
+            )
+        else:
+            print(
+                f"Updated daily message for {lang} on {today}: {selected_phrase.text}"
+            )

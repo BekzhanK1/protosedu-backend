@@ -28,14 +28,14 @@ def debug_task(self):
 # celery.py or where you configure Celery
 if settings.STAGE == "PROD":
     app.conf.beat_schedule = {
-        "send_daily_email_to_all_students": {
-            "task": "account.tasks.send_daily_email_to_all_students",
-            "schedule": crontab(hour=20, minute=15),
-        },
-        "send_daily_email_to_all_parents": {
-            "task": "account.tasks.send_daily_email_to_all_parents",
-            "schedule": crontab(hour=20, minute=30),
-        },
+        # "send_daily_email_to_all_students": {
+        #     "task": "account.tasks.send_daily_email_to_all_students",
+        #     "schedule": crontab(hour=20, minute=15),
+        # },
+        # "send_daily_email_to_all_parents": {
+        #     "task": "account.tasks.send_daily_email_to_all_parents",
+        #     "schedule": crontab(hour=20, minute=30),
+        # },
         "check-streaks-every-night": {
             "task": "account.tasks.check_streaks",
             "schedule": crontab(hour=23, minute=58),
@@ -43,6 +43,10 @@ if settings.STAGE == "PROD":
         "delete-expired-subscriptions-every-night": {
             "task": "account.tasks.delete_expired_subscriptions",
             "schedule": crontab(hour=2, minute=2),
+        },
+        "generate-daily-messages-midnight": {
+            "task": "account.tasks.generate_daily_messages",
+            "schedule": crontab(hour=0, minute=20),
         },
     }
 else:

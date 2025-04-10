@@ -4,6 +4,7 @@ from rest_framework_nested import routers
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from account.views import *
+from account.views.daily_message_views import DailyMessageView
 
 children_router = SimpleRouter()
 children_router.register(r"children", ChildrenViewSet, basename="children")
@@ -57,4 +58,5 @@ urlpatterns = [
     path("all-students/", AllStudentsView.as_view(), name="all-students"),
     path("progress/weekly/", WeeklyProgressAPIView.as_view(), name="weekly-progress"),
     path("progress/day/", ProgressForSpecificDay.as_view(), name="daily-progress"),
+    path("daily-message/", DailyMessageView.as_view(), name="daily-message"),
 ]

@@ -2,7 +2,7 @@ from django.db.models.signals import post_delete, post_save
 from django.core.cache import cache
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
-from account.models import Child, Parent, Student
+from account.models import Child, DailyMessage, Parent, Student
 from account.tasks import course_invalidate_cache
 from subscription.models import Subscription
 from tasks.models import Chapter, Content, Course, Lesson, Section, Task, TaskCompletion
@@ -171,3 +171,10 @@ def invalidate_task_completion_cache(sender, instance, **kwargs):
             user_id=user_id,
             child_id=child_id,
         )
+
+
+@receiver([post_save, post_delete], sender=DailyMessage)
+def invalidate_daily_message_cache(sender, instance, **kwargs):
+    cache_key = f"daily_message_{instance.language}"
+    print(f"Invalidating cache for {cache_key}")
+    cache.delete(cache_key)

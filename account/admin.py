@@ -1,7 +1,17 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.hashers import make_password
-from .models import Child, Class, LevelRequirement, Parent, School, Student, User
+from .models import (
+    Child,
+    Class,
+    LevelRequirement,
+    Parent,
+    School,
+    Student,
+    User,
+    MotivationalPhrase,
+    DailyMessage,
+)
 
 
 # Register User model with customizations
@@ -125,3 +135,17 @@ class SchoolAdmin(admin.ModelAdmin):
     search_fields = ("name", "city", "email", "supervisor__email")
     list_filter = ("city",)
     raw_id_fields = ("supervisor",)
+
+
+@admin.register(MotivationalPhrase)
+class MotivationalPhraseAdmin(admin.ModelAdmin):
+    list_display = ("text", "language")
+    search_fields = ("text",)
+    list_filter = ("language",)
+
+
+@admin.register(DailyMessage)
+class DailyMessageAdmin(admin.ModelAdmin):
+    list_display = ("message", "language", "date")
+    search_fields = ("message",)
+    list_filter = ("language",)

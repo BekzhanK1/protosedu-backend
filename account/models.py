@@ -270,3 +270,26 @@ class Child(models.Model):
         self.cups += question_reward
         self.stars += question_reward
         self.save()
+
+
+class MotivationalPhrase(models.Model):
+    text = models.CharField(max_length=255)
+    language = models.CharField(max_length=50, choices=LANGUAGE_CHOICES, default="ru")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.text
+
+
+class DailyMessage(models.Model):
+    message = models.TextField()
+    language = models.CharField(max_length=50, choices=LANGUAGE_CHOICES, default="ru")
+    is_active = models.BooleanField(default=True)
+    date = models.DateField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.date} {self.message}"
