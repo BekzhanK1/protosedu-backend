@@ -4,7 +4,11 @@ from rest_framework_nested import routers
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from account.views import *
-from account.views.daily_message_views import DailyMessageView
+from account.views.daily_message_views import (
+    DailyMessageView,
+    DailyMessageViewSet,
+    MotivationalPhraseViewSet,
+)
 
 children_router = SimpleRouter()
 children_router.register(r"children", ChildrenViewSet, basename="children")
@@ -27,6 +31,15 @@ schools_router.register(r"classes", ClassViewSet, basename="school-classes")
 classes_router = routers.NestedSimpleRouter(schools_router, r"classes", lookup="class")
 classes_router.register(r"students", StudentViewSet, basename="class-students")
 
+daily_messages_router = SimpleRouter()
+daily_messages_router.register(
+    r"daily-messages", DailyMessageViewSet, basename="daily-messages"
+)
+
+motivational_phrases_router = SimpleRouter()
+motivational_phrases_router.register(
+    r"motivational-phrases", MotivationalPhraseViewSet, basename="motivational-phrases"
+)
 urlpatterns = [
     path("login/", MyTokenObtainPairView.as_view()),
     path("token/refresh/", TokenRefreshView.as_view()),
@@ -37,6 +50,8 @@ urlpatterns = [
     path("", include(router.urls)),
     path("", include(schools_router.urls)),
     path("", include(classes_router.urls)),
+    path("", include(daily_messages_router.urls)),
+    path("", include(motivational_phrases_router.urls)),
     path("register-staff/", StaffRegistrationAPIView.as_view(), name="register-staff"),
     path(
         "register-parent/", ParentRegistrationAPIView.as_view(), name="register-parent"
@@ -58,5 +73,5 @@ urlpatterns = [
     path("all-students/", AllStudentsView.as_view(), name="all-students"),
     path("progress/weekly/", WeeklyProgressAPIView.as_view(), name="weekly-progress"),
     path("progress/day/", ProgressForSpecificDay.as_view(), name="daily-progress"),
-    path("daily-message/", DailyMessageView.as_view(), name="daily-message"),
+    path("daily-message-student/", DailyMessageView.as_view(), name="daily-message"),
 ]

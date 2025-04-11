@@ -1,3 +1,4 @@
+from typing import List, Optional
 import uuid
 from datetime import timedelta
 import random
@@ -350,10 +351,13 @@ def _invalidate_keys(user, child_id, course_id, prefix, item_id):
 
 
 @shared_task
-def generate_daily_messages():
+def generate_daily_messages(languages_list: Optional[List[str]] = None):
     today = timezone.now().date()
 
-    languages = [lang[0] for lang in LANGUAGE_CHOICES]
+    if not languages_list:
+        languages = [lang[0] for lang in LANGUAGE_CHOICES]
+    else:
+        languages = languages_list
 
     for lang in languages:
         phrases = MotivationalPhrase.objects.filter(language=lang, is_active=True)

@@ -26,7 +26,7 @@ def debug_task(self):
 
 
 # celery.py or where you configure Celery
-if settings.STAGE == "PROD":
+if settings.STAGE == "DEV":
     app.conf.beat_schedule = {
         # "send_daily_email_to_all_students": {
         #     "task": "account.tasks.send_daily_email_to_all_students",
@@ -46,7 +46,7 @@ if settings.STAGE == "PROD":
         },
         "generate-daily-messages-midnight": {
             "task": "account.tasks.generate_daily_messages",
-            "schedule": crontab(hour=0, minute=20),
+            "schedule": crontab(hour=0, minute=9),
         },
     }
 else:

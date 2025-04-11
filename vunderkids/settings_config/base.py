@@ -161,6 +161,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "vunderkids.wsgi.application"
+ASGI_APPLICATION = "vunderkids.asgi.application"
 
 AUTH_USER_MODEL = "account.User"
 

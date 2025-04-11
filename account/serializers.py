@@ -461,3 +461,15 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
             raise serializers.ValidationError("User data could not be retrieved.")
 
         return data
+
+
+class DailyMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DailyMessage
+        fields = "__all__"
+
+
+class MotivationalPhraseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MotivationalPhrase
+        fields = "__all__"

@@ -1,12 +1,37 @@
-from rest_framework import status
+from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.core.cache import cache
-from account.models import LANGUAGE_CHOICES, DailyMessage
+from account.models import LANGUAGE_CHOICES, DailyMessage, MotivationalPhrase
 from datetime import date
+
+from account.permissions import IsSuperUser
+from account.serializers import DailyMessageSerializer, MotivationalPhraseSerializer
+from account.tasks import generate_daily_messages
 
 
 class DailyMessageView(APIView):
+    def patch(self, request):
+        user = request.user
+        if not user.is_superuser:
+            return Response(
+                {"error": "You do not have permission to perform this action."},
+                status=403,
+            )
+        languages = request.data.get("languages")
+        if not languages:
+            generate_daily_messages.delay()
+            return Response(
+                {"message": "Daily messages generation started."}, status=200
+            )
+        if not isinstance(languages, list):
+            return Response({"error": "Languages should be a list."}, status=400)
+        for language in languages:
+            if language not in [choice[0] for choice in LANGUAGE_CHOICES]:
+                return Response({"error": f"Invalid language: {language}."}, status=400)
+        generate_daily_messages.delay(languages)
+        return Response({"message": "Daily messages generation started."}, status=200)
+
     def get(self, request):
         language = request.query_params.get("language")
         if language is None:
@@ -42,3 +67,32 @@ class DailyMessageView(APIView):
             return Response(
                 {"message": "No message found for the specified language."}, status=404
             )
+
+
+class DailyMessageViewSet(viewsets.ModelViewSet):
+    serializer_class = DailyMessageSerializer
+    permission_classes = [IsSuperUser]
+    queryset = DailyMessage.objects.all()
+    cache_timeout = 0
+
+    def get_queryset(self):
+        language = self.request.query_params.get("language")
+        if language:
+            return self.queryset.filter(language=language)
+        return self.queryset.filter(date=date.today())
+
+    def list(self, request, *args, **kwargs):
+        print("DailyMessageViewSet list method called")
+        return super().list(request, *args, **kwargs)
+
+
+class MotivationalPhraseViewSet(viewsets.ModelViewSet):
+    serializer_class = MotivationalPhraseSerializer
+    queryset = MotivationalPhrase.objects.all()
+    permission_classes = [IsSuperUser]
+
+    def get_queryset(self):
+        language = self.request.query_params.get("language")
+        if language:
+            return self.queryset.filter(language=language)
+        return self.queryset
