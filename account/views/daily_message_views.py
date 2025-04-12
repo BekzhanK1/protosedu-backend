@@ -1,7 +1,9 @@
 from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.decorators import action
 from django.core.cache import cache
+from django.shortcuts import get_object_or_404
 from account.models import LANGUAGE_CHOICES, DailyMessage, MotivationalPhrase
 from datetime import date
 
@@ -84,6 +86,46 @@ class DailyMessageViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         print("DailyMessageViewSet list method called")
         return super().list(request, *args, **kwargs)
+
+    @action(
+        detail=False,
+        methods=["patch"],
+        url_path="set-daily-message",
+        permission_classes=[IsSuperUser],
+    )
+    def set_daily_message(self, request):
+        print("set_daily_message method called")
+        phrase_id = request.query_params.get("phrase")
+        if not phrase_id:
+            return Response({"error": "Phrase ID is required."}, status=400)
+
+        if not phrase_id.isdigit():
+            return Response({"error": "Phrase ID must be a number."}, status=400)
+
+        phrase_id = int(phrase_id)
+
+        if phrase_id < 1:
+            return Response({"error": "Phrase ID must be greater than 0."}, status=400)
+
+        phrase = get_object_or_404(MotivationalPhrase, id=phrase_id)
+
+        daily_message, created = DailyMessage.objects.update_or_create(
+            language=phrase.language,
+            date=date.today(),
+            defaults={"message": phrase.text, "is_active": True},
+        )
+
+        if created:
+            print("Daily message created")
+        else:
+            print("Daily message updated")
+        return Response(
+            {
+                "message": "Daily message set successfully.",
+                "daily_message": DailyMessageSerializer(daily_message).data,
+            },
+            status=200,
+        )
 
 
 class MotivationalPhraseViewSet(viewsets.ModelViewSet):

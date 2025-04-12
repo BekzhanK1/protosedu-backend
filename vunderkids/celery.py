@@ -46,7 +46,7 @@ if settings.STAGE == "DEV":
         },
         "generate-daily-messages-midnight": {
             "task": "account.tasks.generate_daily_messages",
-            "schedule": crontab(hour=0, minute=9),
+            "schedule": crontab(hour=11, minute=28),
         },
     }
 else:
