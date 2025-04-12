@@ -24,9 +24,12 @@ app.autodiscover_tasks()
 def debug_task(self):
     print("Request: {0!r}".format(self.request))
 
+    # celery.py or where you configure Celery
+    # if settings.STAGE == "DEV":
 
-# celery.py or where you configure Celery
-if settings.STAGE == "DEV":
+    # else:
+    #     print("Celery is running in development mode")
+
     app.conf.beat_schedule = {
         # "send_daily_email_to_all_students": {
         #     "task": "account.tasks.send_daily_email_to_all_students",
@@ -49,5 +52,3 @@ if settings.STAGE == "DEV":
             "schedule": crontab(hour=11, minute=28),
         },
     }
-else:
-    print("Celery is running in development mode")
