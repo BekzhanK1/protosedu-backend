@@ -6,7 +6,7 @@ from account.models import Child, Student
 
 class League(models.Model):
     name = models.CharField(max_length=255, unique=True)
-    rank = models.IntegerField(db_index=True)
+    rank = models.IntegerField(db_index=True, unique=True)
     description = models.TextField(null=True, blank=True)
     icon = models.ImageField(upload_to="league_icons/", null=True, blank=True)
     max_players = models.IntegerField(default=30)
@@ -16,7 +16,16 @@ class League(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.name
+        return f"ID:{self.pk} {self.name}"
+
+    def clean(self):
+        """
+        Ensure that rank is unique and positive.
+        """
+        if self.rank < 0:
+            raise ValidationError("Rank must be a positive integer.")
+        if League.objects.filter(rank=self.rank).exclude(pk=self.pk).exists():
+            raise ValidationError("League with this rank already exists.")
 
     class Meta:
         verbose_name = "League"
@@ -33,7 +42,7 @@ class LeagueGroup(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.league.name} - {self.group_name}"
+        return f"ID:{self.pk} {self.league.name} - {self.group_name}"
 
     class Meta:
         verbose_name = "League Student Group"
@@ -53,7 +62,9 @@ class LeagueGroupParticipant(models.Model):
         null=True,
         blank=True,
     )
+    last_question_answered = models.DateTimeField(null=True, blank=True)
     cups_earned = models.IntegerField(default=0, db_index=True)
+    rank = models.IntegerField(default=0, db_index=True)
 
     @property
     def is_child(self):
@@ -75,9 +86,9 @@ class LeagueGroupParticipant(models.Model):
 
     def __str__(self):
         return (
-            f"{self.student} - {self.cups_earned}"
+            f"ID: {self.pk} {self.student} - {self.cups_earned}"
             if self.student
-            else f"{self.child} - {self.cups_earned}"
+            else f"ID: {self.pk} {self.child} - {self.cups_earned}"
         )
 
     class Meta:
