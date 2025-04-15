@@ -116,18 +116,16 @@ class RequestResetPassword(APIView):
         if username:
             user = get_object_or_404(User, username=username)
             user.reset_password_token = uuid.uuid4()
-            user.reset_password_token_expires_at = timezone.now() + timedelta(days=1)
+            # user.reset_password_token_expires_at = timezone.now() + timedelta(days=1)
             user.save()
             send_password_reset_request_email.delay(user.pk)
             return Response(
-                {"message": "Request has been sent to email"},
-                status=status.HTTP_201_CREATED,
+                {"message": "Request has been sent to email", "email": user.email},
+                status=status.HTTP_200_OK,
             )
         else:
             return Response(
-                {
-                    "message": "You need to enter the email and username to reset the password"
-                },
+                {"message": "You need to enter username to reset the password"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -135,14 +133,23 @@ class RequestResetPassword(APIView):
 class ResetPassword(APIView):
     permission_classes = [AllowAny]
 
+    def get(self, request, token):
+        try:
+            user = User.objects.get(reset_password_token=token)
+            return Response({"message": "Valid token"}, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "Invalid reset link!"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
     def post(self, request, token):
         try:
             user = User.objects.get(reset_password_token=token)
-            if user.is_reset_password_token_expired:
-                return Response(
-                    "Your reset password link has expired!",
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+            # if user.is_reset_password_token_expired:
+            #     return Response(
+            #         "Your reset password link has expired!",
+            #         status=status.HTTP_403_FORBIDDEN,
+            #     )
             password = request.data["password"]
             user.set_password(password)
             user.reset_password_token = None
