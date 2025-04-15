@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.core.cache import cache
 from django.db.models import Prefetch, Count
 from rest_framework.views import APIView
@@ -25,7 +25,7 @@ from .utils import (
     get_league_group_participant_list_cache_key,
 )
 
-from .league_utils import end_league_week
+from .tasks import celery_end_league_week
 
 
 class LeagueViewSet(viewsets.ModelViewSet):
@@ -179,32 +179,48 @@ class LeagueGroupViewSet(
 class TestingView(APIView):
 
     def post(self, request):
-        leagues = League.objects.all()
-        for league in leagues:
-            end_league_week(league)
-        return Response({"message": "League weeks ended successfully."})
+        celery_end_league_week.delay()
+        return Response({"message": "Celery task started."})
 
     def patch(self, request):
         league_group_id = request.query_params.get("group")
+
+        # Handle missing league_group_id
         if not league_group_id:
-            return Response({"error": "No league_id is specified"})
-
-        league_group = LeagueGroup.objects.prefetch_related("participants").get(
-            pk=league_group_id
-        )
-
-        participants = league_group.participants
+            return Response({"error": "No league_group_id is specified"}, status=400)
 
         try:
+            # Fetch the league group and related participants
+            league_group = LeagueGroup.objects.prefetch_related("participants").get(
+                pk=league_group_id
+            )
+
+            participants = league_group.participants.all()
+            print(f"Participants: {participants}")
+
+            # Randomize cups within a transaction block
             with transaction.atomic():
                 for participant in participants:
-                    participant.cups = randint(0, 10000)
-                    participant.save()
+                    # participant.rank = 1
+                    participant.cups_earned = randint(0, 10000)
 
-            return Response({"message": "Succesfully randomized"})
+                # Bulk update participants to save in one go
+                LeagueGroupParticipant.objects.bulk_update(
+                    participants, ["cups_earned"]
+                )
+
+            cache.delete(get_league_group_participant_list_cache_key(league_group_id))
+
+            return Response({"message": "Successfully randomized"})
+
+        except LeagueGroup.DoesNotExist:
+            return Response({"error": "LeagueGroup not found"}, status=404)
+
+        except IntegrityError as e:
+            return Response({"error": f"Database integrity error: {e}"}, status=500)
 
         except Exception as e:
-            return Response({"error": f"Exception: {e}"})
+            return Response({"error": f"Exception: {e}"}, status=500)
 
     def get(self, request):
         try:

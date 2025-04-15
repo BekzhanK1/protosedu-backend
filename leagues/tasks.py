@@ -1,30 +1,28 @@
-from celery import shared_task, group
+from celery import shared_task
+
+from leagues.league_utils import end_league_week_for_group
 
 
 @shared_task
-def process_league_ending(league_id):
+def process_league_group(league_group_id):
     """
-    Celery task to process a single league.
+    Celery task to process a single league group.
     """
-    from .models import League
-    from .league_utils import end_league_week
+    from .models import LeagueGroup
 
-    league = League.objects.get(id=league_id)
-    end_league_week(league)
+    league_group = LeagueGroup.objects.get(id=league_group_id)
+
+    end_league_week_for_group(league_group)
 
 
 @shared_task
 def celery_end_league_week():
     """
-    Celery task to end the league week by delegating work to workers.
-    This will run all tasks concurrently using Celery's `group`.
+    Celery task to end the league week by delegating work to workers for each league group.
     """
-    from .models import League
+    from .models import LeagueGroup
 
-    leagues = League.objects.all()
+    league_groups = LeagueGroup.objects.all()
 
-    # Create a group of tasks for each league
-    tasks = group(process_league_ending.s(league.id) for league in leagues)
-
-    # Execute the tasks concurrently
-    tasks.apply_async()
+    for league_group in league_groups:
+        process_league_group.delay(league_group.id)
