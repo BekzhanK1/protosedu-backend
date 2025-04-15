@@ -33,6 +33,7 @@ class CustomUserAdmin(BaseUserAdmin):
         "is_active",
         "is_staff",
         "is_superuser",
+        "requires_password_change",
     )
     list_filter = ("is_active", "is_staff", "is_superuser", "role")
     search_fields = (
@@ -43,12 +44,52 @@ class CustomUserAdmin(BaseUserAdmin):
     )
     ordering = ("username",)
     filter_horizontal = ()  # add if you have many-to-many fields
+    fieldsets = (
+        (None, {"fields": ("username", "password")}),
+        (
+            "Personal info",
+            {"fields": ("first_name", "last_name", "email", "phone_number")},
+        ),
+        (
+            "Permissions",
+            {
+                "fields": (
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                )
+            },
+        ),
+        ("Important dates", {"fields": ()}),  # ← we exclude date_joined here
+        ("Roles", {"fields": ("role",)}),
+    )
+    add_fieldsets = (
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": (
+                    "username",
+                    "password1",
+                    "password2",
+                    "first_name",
+                    "last_name",
+                    "email",
+                    "role",
+                    "is_active",
+                ),
+            },
+        ),
+    )
 
     def save_model(self, request, obj, form, change):
         # Always ensure that password is stored hashed only when changed.
         if change:
             if "password" in form.changed_data:
                 obj.password = make_password(obj.password)
+                obj.requires_password_change = False
         else:
             obj.password = make_password(obj.password)
         super().save_model(request, obj, form, change)
