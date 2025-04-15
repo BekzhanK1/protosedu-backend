@@ -65,3 +65,6 @@ class AnswerOption(models.Model):
 
     def __str__(self):
         return self.text
+
+
+# TODO - Add result model

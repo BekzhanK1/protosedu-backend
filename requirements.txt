@@ -5,7 +5,7 @@ billiard
 blinker
 celery
 click
-Django
+Django==5.1
 django-cors-headers
 django-redis
 djangorestframework
@@ -33,3 +33,4 @@ google-resumable-media
 googleapis-common-protos
 drf_spectacular
 sentry-sdk[django]
+django-silk

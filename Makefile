@@ -8,4 +8,4 @@ migrate:
 	python3 manage.py migrate
 
 celery:
-	celery -A vunderkids worker -l info
+	celery -A vunderkids worker -l info --concurrency=2

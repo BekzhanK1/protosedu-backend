@@ -12,23 +12,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SECRET_KEY = os.getenv("SECRET_KEY", "your-default-secret-key")
 
 DEBUG = False
+STAGE = os.getenv("STAGE", "DEV")
 
 CACHE_STAGE = os.getenv("CACHE_STAGE", "docker")
 CELERY_STAGE = os.getenv("CELERY_STAGE", "docker")
 
-
-import sentry_sdk
-from sentry_sdk.integrations.django import DjangoIntegration
-
-sentry_sdk.init(
-    dsn="https://59ec37859ff77bf85e8aeaf1b5465136@o4509047659036672.ingest.de.sentry.io/4509047703666768",
-    integrations=[DjangoIntegration()],
-    traces_sample_rate=1.0,  # optional: for performance monitoring
-    send_default_pii=True,  # optional: if you want to send user info
-    _experiments={
-        "continuous_profiling_auto_start": True,
-    },
-)
 
 ADMIN_EMAILS = [
     email.strip() for email in os.getenv("ADMIN_EMAILS", "").split(",") if email.strip()
@@ -51,10 +39,14 @@ INSTALLED_APPS = [
     "tasks",
     "subscription",
     "modo",
-    "olympiad",
+    "leagues",
     "documents",
     "storages",
 ]
+if STAGE == "DEV":
+    INSTALLED_APPS += [
+        "silk",
+    ]
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -142,6 +134,9 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+if STAGE == "DEV":
+    MIDDLEWARE.insert(1, "silk.middleware.SilkyMiddleware")
+
 ROOT_URLCONF = "vunderkids.urls"
 
 TEMPLATES = [
@@ -221,9 +216,9 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = "vunderkidsedu@gmail.com"
+EMAIL_HOST_USER = "school@protosedu.kz"
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
-DEFAULT_FROM_EMAIL = "vunderkidsedu@gmail.com"
+DEFAULT_FROM_EMAIL = "school@protosedu.kz"
 
 HALYK_TERMINAL_ID = os.getenv("HALYK_TERMINAL_ID")
 HALYK_CLIENT_ID = os.getenv("HALYK_CLIENT_ID")
@@ -314,7 +309,46 @@ LOGGING = {
             "propagate": True,
         },
     },
+    "filters": {},
 }
+
+# if STAGE == "DEV":
+#     LOGGING["formatters"].update(
+#         {
+#             "sql": {
+#                 "format": "[{asctime}] {message}",
+#                 "style": "{",
+#             },
+#         }
+#     )
+#     LOGGING["handlers"].update(
+#         {
+#             "console": {
+#                 "level": "DEBUG",
+#                 "class": "logging.StreamHandler",
+#                 "formatter": "sql",
+#                 "filters": ["slow_queries"],
+#             },
+#         }
+#     )
+#     LOGGING["loggers"].update(
+#         {
+#             "django.db.backends": {
+#                 "handlers": ["console"],
+#                 "level": "DEBUG",
+#                 "propagate": False,
+#             },
+#         }
+#     )
+#     LOGGING["filters"].update(
+#         {
+#             "slow_queries": {
+#                 "()": "django.utils.log.CallbackFilter",
+#                 "callback": lambda record: "SELECT" in record.getMessage()
+#                 and getattr(record, "duration_time", 0) > 0.1,
+#             },
+#         }
+#     )
 
 
 if CELERY_STAGE == "docker":

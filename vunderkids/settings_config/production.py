@@ -29,3 +29,17 @@ CSRF_TRUSTED_ORIGINS = [
 
 FRONTEND_URL = "https://protosedu.kz/"
 BACKEND_URL = "https://api.protosedu.kz/"
+
+
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+
+sentry_sdk.init(
+    dsn="https://59ec37859ff77bf85e8aeaf1b5465136@o4509047659036672.ingest.de.sentry.io/4509047703666768",
+    integrations=[DjangoIntegration()],
+    traces_sample_rate=1.0,  # optional: for performance monitoring
+    send_default_pii=True,  # optional: if you want to send user info
+    _experiments={
+        "continuous_profiling_auto_start": True,
+    },
+)
