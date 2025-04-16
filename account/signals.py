@@ -49,12 +49,6 @@ def clear_parent_cache(sender, instance, **kwargs):
     invalidate_user_cache(instance.user.id)
 
 
-@receiver(post_save, sender=Child)
-@receiver(post_delete, sender=Child)
-def clear_child_cache(sender, instance, **kwargs):
-    invalidate_user_cache(instance.parent.user.id)
-
-
 def invalidate_child_cache(child_id):
     """Deletes cached child data when the model is updated or deleted."""
     cache_key = f"child_data_{child_id}"
@@ -64,6 +58,7 @@ def invalidate_child_cache(child_id):
 @receiver(post_save, sender=Child)
 @receiver(post_delete, sender=Child)
 def clear_child_cache(sender, instance, **kwargs):
+    invalidate_user_cache(instance.parent.user.id)
     invalidate_child_cache(instance.pk)
 
 
@@ -156,21 +151,36 @@ def invalidate_task_completion_cache(sender, instance, **kwargs):
     if not course:
         return
 
-    user_id = instance.user.id if instance.user else instance.child.parent.user.id
-    child_id = instance.child.id if instance.child else None
+    user_id = None
+    child_id = None
+
+    try:
+        if instance.user:
+            user_id = instance.user.id
+        elif instance.child:
+            child_id = instance.child.id
+            if instance.child.parent and instance.child.parent.user:
+                user_id = instance.child.parent.user.id
+    except Exception as e:
+        print(f"[Signal] Error resolving user/child in TaskCompletion: {e}")
+        # Optionally skip invalidation if critical data is missing
+        return
 
     for prefix, obj in [
         ("course", course),
         ("section", section),
         ("chapter", chapter),
     ]:
-        course_invalidate_cache.delay(
-            course_id=course.pk,
-            prefix=prefix,
-            item_id=obj.pk,
-            user_id=user_id,
-            child_id=child_id,
-        )
+        try:
+            course_invalidate_cache.delay(
+                course_id=course.pk,
+                prefix=prefix,
+                item_id=obj.pk,
+                user_id=user_id,
+                child_id=child_id,
+            )
+        except Exception as e:
+            print(f"[Signal] Error invalidating cache for {prefix}: {e}")
 
 
 @receiver([post_save, post_delete], sender=DailyMessage)

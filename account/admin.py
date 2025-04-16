@@ -55,6 +55,7 @@ class CustomUserAdmin(BaseUserAdmin):
             {
                 "fields": (
                     "is_active",
+                    "requires_password_change",
                     "is_staff",
                     "is_superuser",
                     "groups",
@@ -106,6 +107,7 @@ class ChildInline(admin.TabularInline):
     model = Child
     extra = 0
     fields = (
+        "pk",
         "first_name",
         "last_name",
         "grade",
@@ -115,12 +117,13 @@ class ChildInline(admin.TabularInline):
         "stars",
         "language",
     )
-    readonly_fields = ()
+    readonly_fields = ("pk",)
 
 
 @admin.register(Child)
 class ChildAdmin(admin.ModelAdmin):
     list_display = (
+        "pk",
         "first_name",
         "last_name",
         "grade",

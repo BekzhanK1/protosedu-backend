@@ -434,6 +434,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
                     "children": ChildSerializer(children, many=True).data,
                     "is_superuser": self.user.is_superuser,
                     "is_staff": self.user.is_staff,
+                    "requires_password_change": self.user.requires_password_change,
                 }
             elif self.user.is_superuser:
                 data["user"] = {
