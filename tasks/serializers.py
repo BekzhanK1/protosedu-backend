@@ -7,6 +7,7 @@ from .models import (
     Answer,
     CanvasImage,
     Chapter,
+    Complaint,
     Content,
     Course,
     Image,
@@ -149,7 +150,7 @@ class QuestionSerializer(serializers.ModelSerializer):
                     image = CanvasImage.objects.create(
                         question=question, image=image_file, image_id=image_id
                     )
-                    
+
         question.save()
 
     def _handle_images(self, question):
@@ -444,3 +445,18 @@ class CourseSerializer(serializers.ModelSerializer):
         total_tasks = self.get_total_tasks(obj)
         completed_tasks = self.get_completed_tasks(obj)
         return (completed_tasks * 100 / total_tasks) if total_tasks > 0 else 0
+
+
+class ComplaintSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Complaint
+        fields = "__all__"
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        task = instance.question.task
+        rep["task"] = task.id
+        rep["chapter"] = task.chapter.id
+        rep["section"] = task.chapter.section.id
+        rep["course"] = task.chapter.section.course.id
+        return rep

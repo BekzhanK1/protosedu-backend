@@ -123,7 +123,7 @@ SIMPLE_JWT = {
 }
 
 MIDDLEWARE = [
-    "vunderkids.middleware.CheckIPAddressMiddleware",
+    # "vunderkids.middleware.CheckIPAddressMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",

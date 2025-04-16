@@ -32,6 +32,8 @@ from account.utils import generate_password, render_email
 from subscription.models import Subscription
 import logging
 
+from tasks.models import Complaint
+
 frontend_url = settings.FRONTEND_URL
 
 
@@ -312,6 +314,26 @@ def send_user_credentials_to_admins(file_path, school_name):
     email.send(fail_silently=False)
 
     return f"User credentials file sent to {settings.ADMIN_EMAILS}"
+
+
+@shared_task
+def send_complaint_to_admins(complaint_id):
+    """
+    Send an email to admins with the details of a complaint.
+    """
+    complaint = Complaint.objects.get(pk=complaint_id)
+    subject = f"New Complaint Received: {complaint.type}"
+    body = f"Complaint ID: {complaint.id}\n\nComplaint type: {complaint.type}\n\nDetails: {complaint.description}"
+
+    email = EmailMessage(
+        subject=subject,
+        body=body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=settings.ADMIN_EMAILS,
+    )
+    email.send(fail_silently=False)
+
+    return f"Complaint email sent to {settings.ADMIN_EMAILS}"
 
 
 @shared_task

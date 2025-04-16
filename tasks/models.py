@@ -217,3 +217,32 @@ class TaskCompletion(models.Model):
 
     def __str__(self):
         return f"{self.user or self.child} - {self.task}"
+
+
+class Complaint(models.Model):
+    question = models.ForeignKey(
+        Question, related_name="complaints", on_delete=models.CASCADE
+    )
+    type = models.CharField(
+        max_length=50,
+        choices=[
+            ("content", "Content"),
+            ("bug", "Bug"),
+            ("other", "Other"),
+        ],
+    )
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("pending", "Pending"),
+            ("resolved", "Resolved"),
+            ("rejected", "Rejected"),
+        ],
+        default="pending",
+    )
+
+    def __str__(self):
+        return f"Complaint by {self.user} on {self.question}"

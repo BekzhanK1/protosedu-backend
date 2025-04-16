@@ -8,13 +8,20 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from account.models import Child, Student
-from account.permissions import HasSubscription, IsSuperUserOrStaffOrReadOnly
+from account.permissions import (
+    HasSubscription,
+    IsSuperUserOrStaffOrReadOnly,
+    IsSuperUser,
+)
+from account.tasks import send_complaint_to_admins
 from account.utils import get_cache_key
+from .utils import get_complaint_list_cache_key
 
 from .models import (
     Answer,
     CanvasImage,
     Chapter,
+    Complaint,
     Content,
     Course,
     Lesson,
@@ -26,6 +33,7 @@ from .models import (
 from .serializers import (
     CanvasImageSerializer,
     ChapterSerializer,
+    ComplaintSerializer,
     ContentSerializer,
     CourseSerializer,
     LessonSerializer,
@@ -36,7 +44,7 @@ from .serializers import (
 )
 
 GAME_COST_CONST = 20
-CACHE_TIMEOUT = 600
+CACHE_TIMEOUT = 3600
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -719,4 +727,52 @@ class DeleteCanvasImage(APIView):
 
         return Response(
             {"message": "Canvas images has been deleted"}, status=status.HTTP_200_OK
+        )
+
+
+class ComplaintViewSet(viewsets.ModelViewSet):
+    """
+    A viewset for viewing and editing complaint instances.
+    """
+
+    serializer_class = ComplaintSerializer
+
+    def get_permissions(self):
+        if self.action in ["update", "partial_update"]:
+            self.permission_classes = [IsSuperUser]
+        else:
+            self.permission_classes = [IsAuthenticated]
+        return super().get_permissions()
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        if response.status_code == status.HTTP_201_CREATED:
+            # send_complaint_to_admins.delay(response.data["id"])
+            pass
+        return response
+
+    def list(self, request, *args, **kwargs):
+        cache_key = get_complaint_list_cache_key()
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            print("Cache hit:", cache_key)
+            return Response(cached_data)
+
+        print("Cache miss")
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        cache.set(cache_key, serializer.data, CACHE_TIMEOUT)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def get_queryset(self):
+        return (
+            Complaint.objects.select_related(
+                "question",
+                "question__task",
+                "question__task__chapter",
+                "question__task__chapter__section",
+                "question__task__chapter__section__course",
+            )
+            .filter(status="pending")
+            .order_by("created_at")[:50]
         )

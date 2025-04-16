@@ -1,7 +1,17 @@
 from django.contrib import admin
 
-from .models import (Answer, Chapter, Content, Course, Lesson, Question,
-                     Section, Task, TaskCompletion)
+from .models import (
+    Answer,
+    Chapter,
+    Complaint,
+    Content,
+    Course,
+    Lesson,
+    Question,
+    Section,
+    Task,
+    TaskCompletion,
+)
 
 
 # Register Course model with customizations
@@ -76,3 +86,4 @@ class TaskCompletionAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Chapter)
+# admin.site.register(Complaint)
