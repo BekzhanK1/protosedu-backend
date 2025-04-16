@@ -86,4 +86,4 @@ class TaskCompletionAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Chapter)
-# admin.site.register(Complaint)
+admin.site.register(Complaint)

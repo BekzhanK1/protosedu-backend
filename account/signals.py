@@ -1,4 +1,4 @@
-from django.db.models.signals import post_delete, post_save
+from django.db.models.signals import post_delete, post_save, pre_delete
 from django.core.cache import cache
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
@@ -32,21 +32,24 @@ def clear_user_cache(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=Subscription)
-@receiver(post_delete, sender=Subscription)
+@receiver(pre_delete, sender=Subscription)
 def clear_subscription_cache(sender, instance, **kwargs):
-    invalidate_user_cache(instance.user.id)
+    if instance.user:
+        invalidate_user_cache(instance.user.id)
 
 
 @receiver(post_save, sender=Student)
-@receiver(post_delete, sender=Student)
+@receiver(pre_delete, sender=Student)
 def clear_student_cache(sender, instance, **kwargs):
-    invalidate_user_cache(instance.user.id)
+    if instance.user:
+        invalidate_user_cache(instance.user.id)
 
 
 @receiver(post_save, sender=Parent)
-@receiver(post_delete, sender=Parent)
+@receiver(pre_delete, sender=Parent)
 def clear_parent_cache(sender, instance, **kwargs):
-    invalidate_user_cache(instance.user.id)
+    if instance.user:
+        invalidate_user_cache(instance.user.id)
 
 
 def invalidate_child_cache(child_id):
@@ -56,7 +59,7 @@ def invalidate_child_cache(child_id):
 
 
 @receiver(post_save, sender=Child)
-@receiver(post_delete, sender=Child)
+@receiver(pre_delete, sender=Child)
 def clear_child_cache(sender, instance, **kwargs):
     invalidate_user_cache(instance.parent.user.id)
     invalidate_child_cache(instance.pk)
@@ -141,7 +144,7 @@ def invalidate_lessons_cache(sender, instance, **kwargs):
         )
 
 
-@receiver([post_save, post_delete], sender=TaskCompletion)
+@receiver([post_save, pre_delete], sender=TaskCompletion)
 def invalidate_task_completion_cache(sender, instance, **kwargs):
     task = instance.task
     chapter = task.chapter

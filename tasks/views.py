@@ -745,7 +745,11 @@ class ComplaintViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def create(self, request, *args, **kwargs):
-        response = super().create(request, *args, **kwargs)
+        try:
+            response = super().create(request, *args, **kwargs)
+        except Exception as e:
+            print("Error during complaint creation:", str(e))
+        print(response.data)
         if response.status_code == status.HTTP_201_CREATED:
             # send_complaint_to_admins.delay(response.data["id"])
             pass
@@ -765,14 +769,10 @@ class ComplaintViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def get_queryset(self):
-        return (
-            Complaint.objects.select_related(
-                "question",
-                "question__task",
-                "question__task__chapter",
-                "question__task__chapter__section",
-                "question__task__chapter__section__course",
-            )
-            .filter(status="pending")
-            .order_by("created_at")[:50]
+        return Complaint.objects.select_related(
+            "question",
+            "question__task",
+            "question__task__chapter",
+            "question__task__chapter__section",
+            "question__task__chapter__section__course",
         )

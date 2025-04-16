@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
@@ -182,9 +183,6 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(max_length=255)
     first_name = serializers.CharField(max_length=30)
     last_name = serializers.CharField(max_length=150)
-    phone_number = serializers.CharField(
-        max_length=17, required=False, allow_blank=True
-    )
     school = serializers.PrimaryKeyRelatedField(
         queryset=School.objects.all(), write_only=True
     )
@@ -192,7 +190,8 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
     school_class = serializers.PrimaryKeyRelatedField(
         queryset=Class.objects.all(), write_only=True
     )
-    gender = serializers.CharField()
+    gender = serializers.CharField(required=False, allow_blank=True, default="O")
+    language = serializers.CharField(required=False, default="ru")
 
     class Meta:
         model = Student
@@ -201,11 +200,11 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
             "email",
             "first_name",
             "last_name",
-            "phone_number",
             "school",
             "school_class",
             "grade",
             "gender",
+            "language",
         )
 
     def validate_username(self, value):
@@ -220,24 +219,33 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
             validate_email(value)
         except DjangoValidationError:
             raise serializers.ValidationError("Invalid email format.")
-
         return value
 
     def create(self, validated_data):
         school = validated_data.pop("school")
         school_class = validated_data.pop("school_class")
         grade = validated_data.pop("grade")
-        gender = validated_data.pop("gender")
+        gender = validated_data.pop("gender", "O")
+        language = validated_data.pop("language")
 
         user_data = {
             key: validated_data.pop(key)
-            for key in ["username", "email", "first_name", "last_name", "phone_number"]
+            for key in [
+                "username",
+                "email",
+                "first_name",
+                "last_name",
+            ]
         }
 
         try:
             with transaction.atomic():
-                user = User.objects.create_user(**user_data, role="student")
-                password = generate_password()
+                user = User.objects.create_user(
+                    **user_data, requires_password_change=True, role="student"
+                )
+                password = settings.STUDENT_DEFAULT_PASSWORD
+                if not password:
+                    password = generate_password()
                 user.set_password(password)
                 user.save()
 
@@ -247,6 +255,7 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
                     school_class=school_class,
                     grade=grade,
                     gender=gender,
+                    language=language,
                     **validated_data
                 )
 

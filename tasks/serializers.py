@@ -455,8 +455,18 @@ class ComplaintSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         task = instance.question.task
-        rep["task"] = task.id
-        rep["chapter"] = task.chapter.id
-        rep["section"] = task.chapter.section.id
-        rep["course"] = task.chapter.section.course.id
+        rep["user_email"] = instance.user.email if instance.user else None
+        rep["question_id"] = instance.question.id
+        rep["question_text"] = instance.question.question_text
+        rep["question"] = instance.question.title
+        rep["task"] = task.title
+        rep["task_id"] = task.id
+        rep["chapter"] = task.chapter.title
+        rep["chapter_id"] = task.chapter.id
+        rep["section"] = task.chapter.section.title
+        rep["section_id"] = task.chapter.section.id
+        rep["course"] = task.chapter.section.course.name
+        rep["course_id"] = task.chapter.section.course.id
+        rep["grade"] = task.chapter.section.course.grade
+        rep["language"] = task.chapter.section.course.language
         return rep

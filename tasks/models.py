@@ -223,6 +223,9 @@ class Complaint(models.Model):
     question = models.ForeignKey(
         Question, related_name="complaints", on_delete=models.CASCADE
     )
+    user = models.ForeignKey(
+        User, null=True, blank=True, related_name="complaints", on_delete=models.CASCADE
+    )
     type = models.CharField(
         max_length=50,
         choices=[

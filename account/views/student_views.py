@@ -4,8 +4,7 @@ from rest_framework.response import Response
 
 from account.models import Class, Student
 from account.permissions import IsSuperUser
-from account.serializers import (StudentRegistrationSerializer,
-                                 StudentSerializer)
+from account.serializers import StudentRegistrationSerializer, StudentSerializer
 
 
 class StudentViewSet(viewsets.ModelViewSet):
