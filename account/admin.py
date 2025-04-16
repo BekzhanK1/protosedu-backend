@@ -55,6 +55,7 @@ class CustomUserAdmin(BaseUserAdmin):
             {
                 "fields": (
                     "is_active",
+                    "requires_password_change",
                     "is_staff",
                     "is_superuser",
                     "groups",
