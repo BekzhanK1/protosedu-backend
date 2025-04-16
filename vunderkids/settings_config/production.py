@@ -12,6 +12,7 @@ ALLOWED_HOSTS = [
     "www.protosedu.kz",
     "api.protosedu.kz",
     "85.198.89.17",
+    "85.198.89.17:9000",
 ]
 
 
