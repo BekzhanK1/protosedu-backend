@@ -49,12 +49,6 @@ def clear_parent_cache(sender, instance, **kwargs):
     invalidate_user_cache(instance.user.id)
 
 
-@receiver(post_save, sender=Child)
-@receiver(post_delete, sender=Child)
-def clear_child_cache(sender, instance, **kwargs):
-    invalidate_user_cache(instance.parent.user.id)
-
-
 def invalidate_child_cache(child_id):
     """Deletes cached child data when the model is updated or deleted."""
     cache_key = f"child_data_{child_id}"
@@ -64,6 +58,7 @@ def invalidate_child_cache(child_id):
 @receiver(post_save, sender=Child)
 @receiver(post_delete, sender=Child)
 def clear_child_cache(sender, instance, **kwargs):
+    invalidate_user_cache(instance.parent.user.id)
     invalidate_child_cache(instance.pk)
 
 
