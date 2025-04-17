@@ -10,7 +10,7 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
 
-GRADE_CHOICES = [(i, str(i)) for i in range(-1, 5)]  # -1 means for everyone
+GRADE_CHOICES = [(i, str(i)) for i in range(-1, 12)]  # -1 means for everyone
 SECTION_CHOICES = (
     [(chr(i), chr(i)) for i in range(ord("A"), ord("Z") + 1)]
     + [(chr(i), chr(i)) for i in range(ord("А"), ord("Я") + 1)]
