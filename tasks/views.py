@@ -744,17 +744,6 @@ class ComplaintViewSet(viewsets.ModelViewSet):
             self.permission_classes = [IsAuthenticated]
         return super().get_permissions()
 
-    def create(self, request, *args, **kwargs):
-        try:
-            response = super().create(request, *args, **kwargs)
-        except Exception as e:
-            print("Error during complaint creation:", str(e))
-        print(response.data)
-        if response.status_code == status.HTTP_201_CREATED:
-            # send_complaint_to_admins.delay(response.data["id"])
-            pass
-        return response
-
     def list(self, request, *args, **kwargs):
         cache_key = get_complaint_list_cache_key()
         cached_data = cache.get(cache_key)
