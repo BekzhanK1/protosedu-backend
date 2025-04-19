@@ -1,6 +1,6 @@
 from django.db import models
 
-from account.models import GRADE_CHOICES
+from account.models import GRADE_CHOICES, LANGUAGE_CHOICES
 from django.db import transaction
 
 DOCUMENT_TYPES = (("ktp", "KTP"),)
@@ -23,6 +23,11 @@ class Subject(models.Model):
 class Document(models.Model):
     name = models.CharField(max_length=255, blank=True, null=True)
     file = models.FileField(upload_to="documents/")
+    language = models.CharField(
+        max_length=50,
+        choices=LANGUAGE_CHOICES,
+        default="ru",
+    )
     order = models.IntegerField(default=0, null=False)
     subject = models.ForeignKey(
         Subject,

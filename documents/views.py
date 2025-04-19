@@ -76,7 +76,11 @@ class DocumentViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         subject_id = request.query_params.get("subject")
         doc_type = request.query_params.get("type")
+        language = request.query_params.get("language")
         cache_key = f"documents_list_subject_{subject_id}_type_{doc_type}"
+
+        if language:
+            cache_key += f"_language_{language}"
 
         print(cache_key)
 
@@ -90,13 +94,36 @@ class DocumentViewSet(viewsets.ModelViewSet):
         if not subject_id:
             return Response({"error": "Subject ID is required."}, status=400)
 
-        self.queryset = self.queryset.filter(subject=subject_id)
+        self.queryset = self.queryset.filter(
+            subject=subject_id,
+        )
 
         if doc_type:
             self.queryset = self.queryset.filter(document_type=doc_type)
 
+        if language:
+            self.queryset = self.queryset.filter(language=language)
+
         response = super().list(request, *args, **kwargs)
         cache.set(cache_key, response.data, timeout=3600)
+        return response
+
+    def create(self, request, *args, **kwargs):
+        print(request.data)
+        try:
+            response = super().create(request, *args, **kwargs)
+        except Exception as e:
+            print(e)
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return response
+
+    def partial_update(self, request, *args, **kwargs):
+        print(request.data)
+        try:
+            response = super().partial_update(request, *args, **kwargs)
+        except Exception as e:
+            print(e)
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return response
 
     def retrieve(self, request, *args, **kwargs):

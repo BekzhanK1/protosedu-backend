@@ -18,12 +18,26 @@ def invalidate_cache_subjects(sender, instance, **kwargs):
 def invalidate_cache_documents(sender, instance, **kwargs):
     cache_keys = [
         f"document_{instance.pk}",
-        f"documents_list_subject_{instance.subject_id}_type_None",
     ]
-    for doc_type, _ in DOCUMENT_TYPES:
+    if instance.language:
         cache_keys.append(
-            f"documents_list_subject_{instance.subject_id}_type_{doc_type}"
+            f"documents_list_subject_{instance.subject_id}_type_{instance.document_type}_language_{instance.language}"
         )
+    else:
+        cache_keys.append(
+            f"documents_list_subject_{instance.subject_id}_type_{instance.document_type}"
+        )
+
+    for doc_type, _ in DOCUMENT_TYPES:
+        if instance.language:
+            cache_keys.append(
+                f"documents_list_subject_{instance.subject_id}_type_{doc_type}_language_{instance.language}"
+            )
+        else:
+            cache_keys.append(
+                f"documents_list_subject_{instance.subject_id}_type_{doc_type}"
+            )
+
     print(cache_keys)
     invalidate_cache_celery.delay(cache_keys)
 

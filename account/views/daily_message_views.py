@@ -74,14 +74,14 @@ class DailyMessageView(APIView):
 class DailyMessageViewSet(viewsets.ModelViewSet):
     serializer_class = DailyMessageSerializer
     permission_classes = [IsSuperUser]
-    queryset = DailyMessage.objects.all()
     cache_timeout = 0
 
     def get_queryset(self):
+        queryset = DailyMessage.objects.filter(is_active=True, date=date.today())
         language = self.request.query_params.get("language")
         if language:
-            return self.queryset.filter(language=language)
-        return self.queryset.filter(date=date.today())
+            return queryset.filter(language=language)
+        return queryset
 
     def list(self, request, *args, **kwargs):
         print("DailyMessageViewSet list method called")
@@ -130,11 +130,11 @@ class DailyMessageViewSet(viewsets.ModelViewSet):
 
 class MotivationalPhraseViewSet(viewsets.ModelViewSet):
     serializer_class = MotivationalPhraseSerializer
-    queryset = MotivationalPhrase.objects.all()
     permission_classes = [IsSuperUser]
 
     def get_queryset(self):
+        queryset = MotivationalPhrase.objects.all()
         language = self.request.query_params.get("language")
         if language:
-            return self.queryset.filter(language=language)
-        return self.queryset
+            return queryset.filter(language=language)
+        return queryset

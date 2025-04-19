@@ -12,6 +12,7 @@ class DocumentSerializer(serializers.ModelSerializer):
             "file",
             "name",
             "subject",
+            "language",
             "order",
             "document_type",
             "created_at",
