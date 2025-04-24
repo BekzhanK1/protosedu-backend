@@ -26,6 +26,7 @@ LANGUAGE_CHOICES = [
     ("ru", "Russian"),
     ("kz", "Kazakh"),
     ("en", "English"),
+    ("cm", "Common"),
 ]
 
 
