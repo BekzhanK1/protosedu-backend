@@ -355,9 +355,14 @@ class SimpleStudentSerializer(serializers.ModelSerializer):
 
 
 class ClassSerializer(serializers.ModelSerializer):
+    num_students = serializers.SerializerMethodField()
+
     class Meta:
         model = Class
         fields = "__all__"
+
+    def get_num_students(self, obj):
+        return obj.students.count() if obj.students else 0
 
 
 class ChildSerializer(serializers.ModelSerializer):

@@ -363,3 +363,4 @@ else:
     )
 
 STUDENT_DEFAULT_PASSWORD = os.getenv("STUDENT_DEFAULT_PASSWORD", "qwerty123")
+STUDENT_DEFAULT_EMAIL = os.getenv("STUDENT_DEFAULT_EMAIL", "lordyestay@gmail.com")

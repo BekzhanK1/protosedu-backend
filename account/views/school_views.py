@@ -20,6 +20,7 @@ from django.contrib.auth.hashers import make_password
 
 
 DEFAULT_PASSWORD = settings.STUDENT_DEFAULT_PASSWORD
+DEFAULT_EMAIL = settings.STUDENT_DEFAULT_EMAIL
 
 
 class SchoolViewSet(viewsets.ModelViewSet):
@@ -108,6 +109,7 @@ class SchoolViewSet(viewsets.ModelViewSet):
         try:
             xls = pd.ExcelFile(file)
         except Exception as e:
+            print("1", e)
             return Response(
                 {"message": f"Invalid Excel file format: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -116,58 +118,141 @@ class SchoolViewSet(viewsets.ModelViewSet):
         names_to_drop = ["Оқушының аты-жөні"]
         all_students = []
 
+        def generate_unique_username(first_name, last_name):
+            base = cyrillic_to_username(f"{first_name} {last_name}")
+            username = base
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{base}{counter}"
+                counter += 1
+            return username
+
         def load_clean_sheet(sheet_name):
-            df = pd.read_excel(xls, sheet_name=sheet_name, skiprows=1)
+            try:
+                df = pd.read_excel(xls, sheet_name=sheet_name, skiprows=1)
 
-            df.columns = [
-                "№",
-                "Оқушының аты-жөні",
-                "Параллель",
-                "Литер",
-                "Ата-анасының электронды почтасы",
-            ]
-            df[["Жөні", "Аты"]] = df["Оқушының аты-жөні"].str.split(n=2, expand=True)[
-                [0, 1]
-            ]
-            df = df.drop(columns=["№"])
-            df = df.dropna(subset=["Оқушының аты-жөні"])
-            df = df.dropna(subset=["Параллель"])
-            df = df.dropna(subset=["Литер"])
-            df = df.dropna(subset=["Ата-анасының электронды почтасы"])
-            df = df[~df["Оқушының аты-жөні"].isin(names_to_drop)]
-            df = df.drop(columns=["Оқушының аты-жөні"])
+                df.columns = [
+                    "№",
+                    "Оқушының аты-жөні",
+                    "Параллель",
+                    "Литер",
+                    "Ата-анасының электронды почтасы",
+                ]
+                df[["Жөні", "Аты"]] = df["Оқушының аты-жөні"].str.split(
+                    n=2, expand=True
+                )[[0, 1]]
+                df = df.drop(columns=["№"])
+                df = df.dropna(subset=["Оқушының аты-жөні"])
+                df = df.dropna(subset=["Параллель"])
+                df = df.dropna(subset=["Литер"])
+                df = df.dropna(subset=["Ата-анасының электронды почтасы"])
+                df = df[~df["Оқушының аты-жөні"].isin(names_to_drop)]
+                df = df.drop(columns=["Оқушының аты-жөні"])
 
-            students = [
-                {
-                    "first_name": row["Аты"],
-                    "last_name": row["Жөні"],
-                    "grade": row["Параллель"],
-                    "section": row["Литер"],
-                    "email": row["Ата-анасының электронды почтасы"],
-                }
-                for _, row in df.iterrows()
-            ]
+                students = [
+                    {
+                        "first_name": (
+                            row["Аты"].strip()
+                            if pd.notna(row["Аты"]) and row["Аты"].strip()
+                            else None
+                        ),
+                        "last_name": (
+                            row["Жөні"].strip()
+                            if pd.notna(row["Жөні"]) and row["Жөні"].strip()
+                            else None
+                        ),
+                        "grade": (
+                            row["Параллель"] if pd.notna(row["Параллель"]) else None
+                        ),
+                        "section": (
+                            row["Литер"].strip()
+                            if pd.notna(row["Литер"]) and row["Литер"].strip()
+                            else None
+                        ),
+                        "email": (
+                            row["Ата-анасының электронды почтасы"].strip()
+                            if pd.notna(row["Ата-анасының электронды почтасы"])
+                            and row["Ата-анасының электронды почтасы"].strip()
+                            else None
+                        ),
+                    }
+                    for _, row in df.iterrows()
+                ]
+
+            except Exception as e:
+                print("2", e)
+                return Response(
+                    {"message": f"Error processing sheet '{sheet_name}': {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            print("length", len(students))
 
             return students
 
         for sheet in xls.sheet_names:
-            sheet_students = load_clean_sheet(sheet)
-            all_students.extend(sheet_students)
-
+            try:
+                sheet_students = load_clean_sheet(sheet)
+                all_students.extend(sheet_students)
+            except Exception as e:
+                print("3", e)
+                return Response(
+                    {"message": f"Error processing sheet '{sheet}': {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         new_user_ids = []
         user_credentials = []
 
         try:
             hashed_password = make_password(DEFAULT_PASSWORD)
             with transaction.atomic():
+                school = School.objects.get(pk=school_id)
+
+                exceptions = []
                 for student in all_students:
-                    school = School.objects.get(pk=school_id)
-                    username = cyrillic_to_username(
-                        student["first_name"] + " " + student["last_name"]
+                    email = (student.get("email") or "").strip()
+                    first_name = (student.get("first_name") or "").strip()
+                    last_name = (student.get("last_name") or "").strip()
+                    grade = student.get("grade")
+                    section = (student.get("section") or "").strip()
+
+                    if not first_name:
+                        exceptions.append(
+                            f"Student with email '{email}' and class '{grade}{section}' has no first name"
+                        )
+                    if not last_name:
+                        exceptions.append(
+                            f"Student with email '{email}' and class '{grade}{section}' has no last name"
+                        )
+                    if not grade or not section:
+                        exceptions.append(
+                            f"Student with email '{email}' has missing grade or section"
+                        )
+                    if not email or "@" not in email:
+                        exceptions.append(
+                            f"Student '{first_name} {last_name}' has an invalid or missing email"
+                        )
+                        # Optionally set default email:
+                        # student["email"] = DEFAULT_EMAIL
+
+                if exceptions:
+                    return Response(
+                        {
+                            "message": "Error processing students",
+                            "number_of_students": len(all_students),
+                            "exceptions": exceptions,
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                for student in all_students:
+                    username = generate_unique_username(
+                        student["first_name"],
+                        student["last_name"],
                     )
                     user, created = User.objects.get_or_create(
                         username=username,
-                        email=student["email"],
+                        email=student["email"] if student["email"] != "" else None,
                         defaults={
                             "first_name": student["first_name"],
                             "last_name": student["last_name"],
@@ -247,6 +332,7 @@ class SchoolViewSet(viewsets.ModelViewSet):
             )
 
         except Exception as e:
+            print("4", e)
             return Response(
                 {"message": f"Error processing students: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
