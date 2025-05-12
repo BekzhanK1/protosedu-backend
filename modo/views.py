@@ -1,12 +1,12 @@
 from rest_framework import viewsets, filters, status
-from .models import Test, Question, Content, AnswerOption
+from .models import Test, Question, Content, AnswerOption, TestAnswer
 from .serializers import (
     TestSerializer,
     QuestionSerializer,
     ContentSerializer,
     AnswerOptionSerializer,
 )
-from account.permissions import IsSuperUserOrStaffOrReadOnly
+from account.permissions import IsSuperUserOrStaffOrReadOnly, IsAuthenticated
 from rest_framework.exceptions import ValidationError
 
 from rest_framework.response import Response
@@ -25,13 +25,41 @@ class TestViewSet(viewsets.ModelViewSet):
     ordering_fields = ["order", "title"]
     ordering = ["order"]
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        request = self.request
+        child_id = request.query_params.get("child_id")
+        user = request.user
+
+        test_answers = None
+        if self.action == "retrieve" and user.is_authenticated:
+            test = self.get_object()
+            if user.is_parent:
+                test_answers = TestAnswer.objects.filter(
+                    test=test, child_id=child_id
+                ).select_related("answer_option", "question")
+            elif user.is_student:
+                test_answers = TestAnswer.objects.filter(
+                    test=test, user=user
+                ).select_related("answer_option", "question")
+
+        context.update(
+            {
+                "request": request,
+                "child_id": child_id,
+                "test_answers": test_answers,
+                "action": self.action,
+            }
+        )
+        return context
+
     def create(self, request):
         test = request.data
         print(test)
         test_data = {
-            "title": test['title'],
+            "title": test["title"],
             "description": test["description"],
-            "test_type": test["test_type"]
+            "test_type": test["test_type"],
         }
         test_serializer = self.get_serializer(data=test_data)
         if test_serializer.is_valid():
@@ -44,7 +72,9 @@ class TestViewSet(viewsets.ModelViewSet):
                     if question["image"]:
                         contents["image"] = question["image"]
                     print(contents, question["answers"])
-                    question_serializer.save_with_contents_and_answers(contents, question["answers"])
+                    question_serializer.save_with_contents_and_answers(
+                        contents, question["answers"]
+                    )
                 if not question_serializer.is_valid():
                     print(question_serializer.errors)
         return Response(test_serializer.data, status=status.HTTP_201_CREATED)
@@ -52,17 +82,16 @@ class TestViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
 
-        test_data = TestSerializer(instance).data
+        test_data = self.get_serializer(instance).data
 
         questions_data = []
         for question in instance.questions.all():
             question_data = QuestionSerializer(question).data
             questions_data.append(question_data)
-            
-        print(test_data)
-        test_data['questions'] = questions_data
-        return Response(test_data, status=status.HTTP_200_OK)
 
+        # print(test_data)
+        test_data["questions"] = questions_data
+        return Response(test_data, status=status.HTTP_200_OK)
 
 
 class QuestionViewSet(viewsets.ModelViewSet):
@@ -139,3 +168,20 @@ class AnswerOptionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save()
+
+
+class TestAnswerViewSet(viewsets.ModelViewSet):
+    queryset = TestAnswer.objects.all()
+    serializer_class = TestSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_parent:
+            child_id = self.request.query_params.get("child_id")
+            if not child_id:
+                raise ValidationError({"detail": "Parameter 'child_id' is required."})
+            queryset = super().get_queryset().filter(child_id=child_id)
+        elif user.is_student:
+            queryset = super().get_queryset().filter(user_id=user.id)
+        return queryset

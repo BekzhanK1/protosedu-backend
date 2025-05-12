@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 
 TEST_TYPE = [
     ("modo", "MODO"),
@@ -67,4 +68,51 @@ class AnswerOption(models.Model):
         return self.text
 
 
-# TODO - Add result model
+class TestAnswer(models.Model):
+    child = models.ForeignKey(
+        "account.Child",
+        related_name="test_answers",
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+    )
+    user = models.ForeignKey(
+        "account.User",
+        related_name="test_answers",
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+    )
+    test = models.ForeignKey(Test, related_name="answers", on_delete=models.CASCADE)
+    question = models.ForeignKey(
+        Question, related_name="answers", on_delete=models.CASCADE
+    )
+    answer_option = models.ForeignKey(
+        AnswerOption, related_name="answers", on_delete=models.CASCADE
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def is_correct(self):
+        return self.answer_option.is_correct
+
+    class Meta:
+        unique_together = (
+            "child",
+            "user",
+            "test",
+            "question",
+            "answer_option",
+        )
+        ordering = ["-id"]
+        verbose_name = "Test Answer"
+        verbose_name_plural = "Test Answers"
+
+    def __str__(self):
+        return f"{self.child or self.user} - {self.test.title} - {self.question.title}"
+
+    def clean(self):
+        if not self.child and not self.user:
+            raise ValidationError("Either 'child' or 'user' must be set.")
+        if self.child and self.user:
+            raise ValidationError("Only one of 'child' or 'user' can be set.")
