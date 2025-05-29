@@ -367,7 +367,16 @@ class LessonViewSet(viewsets.ModelViewSet):
         )
 
     def create(self, request, course_pk=None, section_pk=None, chapter_pk=None):
-        content_node = request.query_params.get("content-node", None)
+        content_node = request.query_params.get("content-node") or request.data.get(
+            "content-node"
+        )
+
+        if not content_node:
+            return Response(
+                {"message": "Content node is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         data = request.data.copy()
         if isinstance(data, list):
             for item in data:
@@ -432,7 +441,16 @@ class TaskViewSet(viewsets.ModelViewSet):
         return TaskSerializer
 
     def create(self, request, chapter_pk=None, section_pk=None, course_pk=None):
-        content_node = request.query_params.get("content-node", None)
+        content_node = request.query_params.get("content-node") or request.data.get(
+            "content-node"
+        )
+
+        if not content_node:
+            return Response(
+                {"message": "Content node is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         data = request.data.copy()
         if isinstance(data, list):
             for item in data:
