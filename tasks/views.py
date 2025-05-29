@@ -23,6 +23,7 @@ from .models import (
     Chapter,
     Complaint,
     Content,
+    ContentNode,
     Course,
     Lesson,
     Question,
@@ -34,6 +35,7 @@ from .serializers import (
     CanvasImageSerializer,
     ChapterSerializer,
     ComplaintSerializer,
+    ContentNodeSerializer,
     ContentSerializer,
     CourseSerializer,
     LessonSerializer,
@@ -334,6 +336,26 @@ class ContentViewSet(viewsets.ModelViewSet):
         return context
 
 
+class ContentNodeViewSet(viewsets.ModelViewSet):
+    serializer_class = ContentNodeSerializer
+    permission_classes = [IsSuperUserOrStaffOrReadOnly]
+    queryset = ContentNode.objects.all()
+
+    def get_queryset(self):
+        return ContentNode.objects.filter(
+            chapter_id=self.kwargs["chapter_pk"]
+        ).order_by("order")
+
+    def create(self, request, course_pk=None, section_pk=None, chapter_pk=None):
+        data = request.data.copy()
+        data["chapter"] = chapter_pk
+        serializer = self.serializer_class(data=data, context={"request": request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 class LessonViewSet(viewsets.ModelViewSet):
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
@@ -345,6 +367,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         )
 
     def create(self, request, course_pk=None, section_pk=None, chapter_pk=None):
+        content_node = request.query_params.get("content-node", None)
         data = request.data.copy()
         if isinstance(data, list):
             for item in data:
@@ -355,14 +378,36 @@ class LessonViewSet(viewsets.ModelViewSet):
             data["content_type"] = "lesson"
 
         serializer = self.serializer_class(
-            data=data, many=isinstance(data, list), context={"request": request}
+            data=data,
+            many=isinstance(data, list),
+            context={
+                "request": request,
+            },
         )
         if serializer.is_valid():
-            lessons = serializer.save()
-            return Response(
-                self.serializer_class(lessons, many=isinstance(data, list)).data,
-                status=status.HTTP_201_CREATED,
-            )
+            if serializer.is_valid():
+                with transaction.atomic():
+                    # Check ContentNode first
+                    if content_node:
+                        content_node_instance = get_object_or_404(
+                            ContentNode, id=content_node
+                        )
+                        if content_node_instance.lesson:
+                            return Response(
+                                {
+                                    "message": "Content node already has a lesson assigned."
+                                },
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
+
+                    # Safe to save now
+                    lessons = serializer.save()
+
+                    if content_node and not isinstance(lessons, list):
+                        content_node_instance.lesson = lessons
+                        content_node_instance.save()
+
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get_serializer_context(self):
@@ -387,6 +432,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         return TaskSerializer
 
     def create(self, request, chapter_pk=None, section_pk=None, course_pk=None):
+        content_node = request.query_params.get("content-node", None)
         data = request.data.copy()
         if isinstance(data, list):
             for item in data:
@@ -400,7 +446,22 @@ class TaskViewSet(viewsets.ModelViewSet):
             data=data, many=isinstance(data, list), context={"request": request}
         )
         if serializer.is_valid():
-            serializer.save()
+            with transaction.atomic():
+                if content_node:
+                    content_node_instance = get_object_or_404(
+                        ContentNode, id=content_node
+                    )
+                    if content_node_instance.task:
+                        return Response(
+                            {"message": "Content node already has a task assigned."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                tasks = serializer.save()
+
+                if content_node and not isinstance(tasks, list):
+                    content_node_instance.task = tasks
+                    content_node_instance.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

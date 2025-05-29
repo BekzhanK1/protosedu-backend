@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     ChapterViewSet,
+    ContentNodeViewSet,
     ContentViewSet,
     CourseViewSet,
     LessonViewSet,
@@ -31,6 +32,9 @@ chapters_router = routers.NestedSimpleRouter(
     sections_router, r"chapters", lookup="chapter"
 )
 
+chapters_router.register(
+    r"content-nodes", ContentNodeViewSet, basename="chapter-content-nodes"
+)
 chapters_router.register(r"contents", ContentViewSet, basename="chapter-contents")
 chapters_router.register(r"lessons", LessonViewSet, basename="chapter-lessons")
 chapters_router.register(r"tasks", TaskViewSet, basename="chapter-tasks")

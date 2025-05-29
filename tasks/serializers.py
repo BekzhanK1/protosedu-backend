@@ -9,6 +9,7 @@ from .models import (
     Chapter,
     Complaint,
     Content,
+    ContentNode,
     Course,
     Image,
     Lesson,
@@ -24,6 +25,11 @@ class AnswerSerializer(serializers.Serializer):
 
 
 class LessonSerializer(serializers.ModelSerializer):
+    used_in_content_node = serializers.SerializerMethodField()
+
+    def get_used_in_content_node(self, obj):
+        return hasattr(obj, "content_node") and obj.content_node is not None
+
     class Meta:
         model = Lesson
         fields = "__all__"
@@ -197,10 +203,14 @@ class TaskSerializer(serializers.ModelSerializer):
     incorrect_questions = serializers.SerializerMethodField()
     answered_questions = serializers.SerializerMethodField()
     progress = serializers.SerializerMethodField()
+    used_in_content_node = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
         fields = "__all__"
+
+    def get_used_in_content_node(self, obj):
+        return hasattr(obj, "content_node") and obj.content_node is not None
 
     def get_task_completion(self, obj):
         request = self.context.get("request", None)
@@ -260,6 +270,7 @@ class TaskSummarySerializer(TaskSerializer):
             "total_questions",
             "correct_questions",
             "incorrect_questions",
+            "used_in_content_node",
         ]
 
 
@@ -291,6 +302,25 @@ class ContentSerializer(serializers.ModelSerializer):
         if instance.content_type != "task":
             representation.pop("is_completed", None)
         return representation
+
+
+class ContentNodeSerializer(serializers.ModelSerializer):
+    lesson = serializers.SerializerMethodField()
+    task = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ContentNode
+        fields = ["id", "title", "description", "chapter", "order", "lesson", "task"]
+
+    def get_lesson(self, obj):
+        if obj.lesson:
+            return {"id": obj.lesson.id, "title": obj.lesson.title}
+        return None
+
+    def get_task(self, obj):
+        if obj.task:
+            return {"id": obj.task.id, "title": obj.task.title}
+        return None
 
 
 class ChapterSerializer(serializers.ModelSerializer):

@@ -1,5 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from account.models import GRADE_CHOICES, LANGUAGE_CHOICES, Child
 
@@ -107,6 +109,73 @@ class Lesson(Content):
 class Task(Content):
     def __str__(self):
         return f"Task: {self.title}"
+
+
+class ContentNode(models.Model):
+    title = models.CharField(max_length=255, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    lesson = models.OneToOneField(
+        Lesson,
+        related_name="content_node",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    task = models.OneToOneField(
+        Task,
+        related_name="content_node",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    order = models.IntegerField(default=0)
+    chapter = models.ForeignKey(
+        Chapter, related_name="content_nodes", null=True, on_delete=models.CASCADE
+    )
+
+    class Meta:
+        ordering = ["order"]
+
+    def clean(self):
+        has_lesson = self.lesson is not None
+        has_task = self.task is not None
+
+        if has_lesson and has_task:
+            if self.lesson.chapter != self.task.chapter:
+                raise ValidationError(
+                    "Lesson and task must belong to the same chapter."
+                )
+            self.chapter = self.lesson.chapter
+
+        elif has_lesson:
+            self.chapter = self.lesson.chapter
+
+        elif has_task:
+            self.chapter = self.task.chapter
+
+        if has_lesson or has_task:
+            source = self.lesson if has_lesson else self.task
+            if not self.title:
+                self.title = source.title
+            if not self.description:
+                self.description = source.description
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        if self.pk is None:
+            last_order = ContentNode.objects.filter(chapter=self.chapter).aggregate(
+                models.Max("order")
+            )["order__max"]
+            self.order = (last_order + 1) if last_order is not None else 1
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        parts = []
+        if self.lesson:
+            parts.append(f"Lesson: {self.lesson.title}")
+        if self.task:
+            parts.append(f"Task: {self.task.title}")
+        return f"Node ({' + '.join(parts)})"
 
 
 class Question(models.Model):

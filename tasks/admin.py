@@ -11,6 +11,7 @@ from .models import (
     Section,
     Task,
     TaskCompletion,
+    ContentNode,
 )
 
 
@@ -57,6 +58,25 @@ class TaskAdmin(admin.ModelAdmin):
     search_fields = ("title", "description", "chapter__title")
     list_filter = ("chapter__section__course__name",)
     ordering = ("chapter", "order")
+
+
+@admin.register(ContentNode)
+class ContentNodeAdmin(admin.ModelAdmin):
+    list_display = ("id", "chapter", "order", "get_lesson", "get_task")
+    ordering = ("chapter", "order")
+    raw_id_fields = ("lesson", "task")
+    readonly_fields = ("chapter",)
+    exclude = ("chapter",)
+
+    def get_lesson(self, obj):
+        return obj.lesson.title if obj.lesson else "-"
+
+    get_lesson.short_description = "Lesson"
+
+    def get_task(self, obj):
+        return obj.task.title if obj.task else "-"
+
+    get_task.short_description = "Task"
 
 
 # Register Question model with customizations
