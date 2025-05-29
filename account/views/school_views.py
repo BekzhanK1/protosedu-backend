@@ -93,15 +93,26 @@ class SchoolViewSet(viewsets.ModelViewSet):
     )
     def upload_excel(self, request):
         file = request.FILES.get("file")
+        subscriptionPlan = request.data.get("plan", None)
+        if not subscriptionPlan:
+            return Response(
+                {"message": "Plan is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
         school_id = request.query_params.get("school_id")
         if not file:
             return Response(
                 {"message": "No file was uploaded"}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        return self.parse_excel(file, school_id)
+        if not school_id:
+            return Response(
+                {"message": "School ID is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-    def parse_excel(self, file, school_id):
+        return self.parse_excel(file, school_id, subscriptionPlan)
+
+    def parse_excel(self, file, school_id, subcriptionPlan):
         """
         Parses the uploaded Excel file, extracts student data,
         and checks for duplicate emails before processing further.
@@ -215,6 +226,14 @@ class SchoolViewSet(viewsets.ModelViewSet):
                     last_name = (student.get("last_name") or "").strip()
                     grade = student.get("grade")
                     section = (student.get("section") or "").strip()
+                    print(
+                        "Processing student:",
+                        first_name,
+                        last_name,
+                        grade,
+                        section,
+                        email,
+                    )
 
                     if not first_name:
                         exceptions.append(
@@ -262,7 +281,7 @@ class SchoolViewSet(viewsets.ModelViewSet):
                         },
                     )
                     if created:
-                        plan, _ = Plan.objects.get_or_create(duration="annual")
+                        plan, _ = Plan.objects.get_or_create(duration=subcriptionPlan)
                         Subscription.objects.create(user=user, plan=plan)
                         user.password = hashed_password
                         user.save()
