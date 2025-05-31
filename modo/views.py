@@ -1,13 +1,18 @@
 from rest_framework import viewsets, filters, status
-from .models import Test, Question, Content, AnswerOption
+from rest_framework.decorators import action
+
+from account.models import Child, User
+from .models import TestAnswer, Test, Question, Content, AnswerOption, TestResult
 from .serializers import (
     TestSerializer,
     QuestionSerializer,
     ContentSerializer,
     AnswerOptionSerializer,
 )
-from account.permissions import IsSuperUserOrStaffOrReadOnly
+from account.permissions import IsParent, IsStudent, IsSuperUserOrStaffOrReadOnly
 from rest_framework.exceptions import ValidationError
+from django.shortcuts import get_object_or_404
+from rest_framework.views import APIView
 
 from rest_framework.response import Response
 from django.db import transaction
@@ -24,6 +29,19 @@ class TestViewSet(viewsets.ModelViewSet):
     search_fields = ["title", "description"]
     ordering_fields = ["order", "title"]
     ordering = ["order"]
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        child_id = request.query_params.get("child_id")
+        serializer = self.get_serializer(
+            queryset, context={"request": self.request, "child_id": child_id}, many=True
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, context={"request": self.request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def create(self, request):
         test = request.data
@@ -113,7 +131,6 @@ class AnswerOptionViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         data = request.data
 
-        # If using multi-part, use .data.getlist()
         if isinstance(data, list):
             items = data
         elif isinstance(data, dict) and "question" in data:
@@ -150,3 +167,100 @@ class AnswerOptionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save()
+
+
+class AnswerQuestionAPIView(APIView):
+    permission_classes = [IsParent | IsStudent]
+
+    def post(self, request, *args, **kwargs):
+        user: User = request.user
+
+        if user.is_student:
+            entity = user
+        elif user.is_parent:
+            child_id = request.query_params.get("child_id")
+            if not child_id:
+                return Response(
+                    {"detail": "Child ID is required for parent users."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            entity: Child = get_object_or_404(Child, pk=child_id, parent__user=user)
+        else:
+            return Response(
+                {"detail": "You do not have permission to answer questions."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        question_id = request.query_params.get("question_id")
+        if not question_id:
+            return Response(
+                {"detail": "Question ID is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        question = get_object_or_404(Question, pk=question_id)
+
+        answer_options = question.answer_options.all()
+        if not answer_options.exists():
+            return Response(
+                {"detail": "No answer options available for this question."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        data = request.data
+        answer_option = data.get("answer_option")
+        if not answer_option:
+            return Response(
+                {"detail": "Answer option is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        answer_option_instance = get_object_or_404(
+            AnswerOption, pk=answer_option, question=question
+        )
+
+        with transaction.atomic():
+            filter_kwargs = {"question": question}
+            result_kwargs = {"test": question.test}
+            if user.is_student:
+                filter_kwargs["user"] = entity
+                result_kwargs["user"] = entity
+            else:
+                filter_kwargs["child"] = entity
+                result_kwargs["child"] = entity
+
+            test_answer, _ = TestAnswer.objects.update_or_create(
+                question=question,
+                defaults={
+                    "answer_option": answer_option_instance,
+                    "is_correct": answer_option_instance.is_correct,
+                    **filter_kwargs,
+                },
+            )
+
+            answers = TestAnswer.objects.filter(
+                question__test=question.test,
+                **({"user": entity} if user.is_student else {"child": entity}),
+            )
+
+            answered_questions = answers.count()
+            correct_answers = answers.filter(is_correct=True).count()
+
+            total_questions = question.test.questions.count()
+
+            TestResult.objects.update_or_create(
+                defaults={
+                    "score": (correct_answers // total_questions) * 100,
+                    "correct_answers": correct_answers,
+                    "total_questions": total_questions,
+                    "is_finished": (
+                        True if total_questions == answered_questions else False
+                    ),
+                },
+                **result_kwargs,
+            )
+
+        return Response(
+            {"detail": "Answer submitted successfully."},
+            status=status.HTTP_201_CREATED,
+        )

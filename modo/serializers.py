@@ -2,8 +2,6 @@ from rest_framework import serializers
 from .models import Test, Question, Content, AnswerOption
 
 
-
-
 class AnswerOptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AnswerOption
@@ -49,7 +47,7 @@ class QuestionSerializer(serializers.ModelSerializer):
         instance = self.save()
 
         for key in contents:
-            if key=="text":
+            if key == "text":
                 Content.objects.create(
                     question=instance,
                     content_type=key,
@@ -57,21 +55,56 @@ class QuestionSerializer(serializers.ModelSerializer):
                 )
             else:
                 Content.objects.create(
-                    question=instance,
-                    content_type=key,
-                    image=contents[key]
+                    question=instance, content_type=key, image=contents[key]
                 )
-        
+
         for answer in answers:
             AnswerOption.objects.create(
-                question=instance,
-                text=answer["text"],
-                is_correct=answer["is_correct"]
+                question=instance, text=answer["text"], is_correct=answer["is_correct"]
             )
 
 
 class TestSerializer(serializers.ModelSerializer):
     questions = QuestionSerializer(many=True, read_only=True)
+    is_finished = serializers.SerializerMethodField()
+    score_percentage = serializers.SerializerMethodField()
+
+    def get_is_finished(self, obj):
+        user = self.context.get("request").user
+        if user.is_parent:
+            child_id = self.context.get("child_id")
+            if child_id:
+                return obj.results.filter(
+                    child__id=child_id, is_finished=True, test=obj
+                ).exists()
+            else:
+                raise serializers.ValidationError(
+                    "Child ID is required for parent users."
+                )
+        elif user.is_student:
+            return obj.results.filter(user=user, is_finished=True, test=obj).exists()
+        else:
+            return False
+
+    def get_score_percentage(self, obj):
+        user = self.context.get("request").user
+        if user.is_parent:
+            child_id = self.context.get("child_id")
+            if child_id:
+                result = obj.results.filter(child__id=child_id, test=obj).first()
+            else:
+                raise serializers.ValidationError(
+                    "Child ID is required for parent users."
+                )
+        elif user.is_student:
+            result = obj.results.filter(user=user, test=obj).first()
+        else:
+            return None
+
+        if result and result.total_questions > 0:
+            return (result.correct_answers / result.total_questions) * 100
+        return 0.0
+
     class Meta:
         model = Test
         fields = "__all__"
