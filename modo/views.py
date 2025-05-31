@@ -29,9 +29,9 @@ class TestViewSet(viewsets.ModelViewSet):
         test = request.data
         print(test)
         test_data = {
-            "title": test['title'],
+            "title": test["title"],
             "description": test["description"],
-            "test_type": test["test_type"]
+            "test_type": test["test_type"],
         }
         test_serializer = self.get_serializer(data=test_data)
         if test_serializer.is_valid():
@@ -44,7 +44,9 @@ class TestViewSet(viewsets.ModelViewSet):
                     if question["image"]:
                         contents["image"] = question["image"]
                     print(contents, question["answers"])
-                    question_serializer.save_with_contents_and_answers(contents, question["answers"])
+                    question_serializer.save_with_contents_and_answers(
+                        contents, question["answers"]
+                    )
                 if not question_serializer.is_valid():
                     print(question_serializer.errors)
         return Response(test_serializer.data, status=status.HTTP_201_CREATED)
@@ -58,11 +60,10 @@ class TestViewSet(viewsets.ModelViewSet):
         for question in instance.questions.all():
             question_data = QuestionSerializer(question).data
             questions_data.append(question_data)
-            
-        print(test_data)
-        test_data['questions'] = questions_data
-        return Response(test_data, status=status.HTTP_200_OK)
 
+        print(test_data)
+        test_data["questions"] = questions_data
+        return Response(test_data, status=status.HTTP_200_OK)
 
 
 class QuestionViewSet(viewsets.ModelViewSet):
@@ -110,32 +111,42 @@ class AnswerOptionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsSuperUserOrStaffOrReadOnly]
 
     def create(self, request, *args, **kwargs):
-        question_id = (
-            request.data[0]["question"]
-            if isinstance(request.data, list)
-            else request.data["question"]
-        )
-        existing_count = self.queryset.filter(question_id=question_id).count()
-        new_count = len(request.data) if isinstance(request.data, list) else 1
+        data = request.data
 
-        if existing_count + new_count > MAX_ANSWER_OPTIONS:
+        # If using multi-part, use .data.getlist()
+        if isinstance(data, list):
+            items = data
+        elif isinstance(data, dict) and "question" in data:
+            items = [data]
+        else:
+            raise ValidationError({"detail": "Invalid data format"})
+
+        question_id = items[0]["question"]
+        existing_count = self.queryset.filter(question_id=question_id).count()
+        if existing_count + len(items) > MAX_ANSWER_OPTIONS:
             raise ValidationError(
                 {
                     "detail": "Total answer options count for this question must not exceed 4."
                 }
             )
 
-        if isinstance(request.data, list):
-            serializer = self.get_serializer(data=request.data, many=True)
-            serializer.is_valid(raise_exception=True)
-            with transaction.atomic():
-                self.perform_create(serializer)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
+        for item in items:
+            if item["option_type"] == "image" and not item.get("image"):
+                raise ValidationError(
+                    {"detail": "Image must be provided for option_type 'image'."}
+                )
+            if item["option_type"] == "text" and not item.get("text"):
+                raise ValidationError(
+                    {"detail": "Text must be provided for option_type 'text'."}
+                )
+
+        serializer = self.get_serializer(data=items, many=True)
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
             self.perform_create(serializer)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def perform_create(self, serializer):
         serializer.save()

@@ -60,11 +60,13 @@ class AnswerOption(models.Model):
     question = models.ForeignKey(
         Question, related_name="answer_options", on_delete=models.CASCADE
     )
-    text = models.CharField(max_length=255)
+    text = models.CharField(max_length=255, null=True, blank=True)
+    image = models.ImageField(upload_to="answer_options/images/", blank=True, null=True)
     is_correct = models.BooleanField(default=False)
+    option_type = models.CharField(max_length=5, choices=CONTENT_TYPE, default="text")
 
     def __str__(self):
-        return self.text
+        return f"{self.text[:30] if self.text else 'Image Option'} - {'Correct' if self.is_correct else 'Incorrect'}"
 
 
 # TODO - Add result model
