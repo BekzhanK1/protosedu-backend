@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Test, Question, Content, AnswerOption
+from .models import Test, Question, Content, AnswerOption, TestAnswer, TestResult
 
 
 class AnswerOptionSerializer(serializers.ModelSerializer):
@@ -108,3 +108,36 @@ class TestSerializer(serializers.ModelSerializer):
     class Meta:
         model = Test
         fields = "__all__"
+
+
+class TestAnswerSerializer(serializers.ModelSerializer):
+    question = QuestionSerializer(read_only=True)
+    answer_option = AnswerOptionSerializer(read_only=True)
+
+    class Meta:
+        model = TestAnswer
+        fields = "__all__"
+
+
+class TestResultSerializer(serializers.ModelSerializer):
+    test_answers = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TestResult
+        fields = "__all__"
+
+    def get_test_answers(self, obj):
+        # Access context request
+        request = self.context.get("request")
+        if not request:
+            return []
+
+        # Determine user or child
+        if obj.user:
+            answers = TestAnswer.objects.filter(question__test=obj.test, user=obj.user)
+        else:
+            answers = TestAnswer.objects.filter(
+                question__test=obj.test, child=obj.child
+            )
+
+        return TestAnswerSerializer(answers, many=True, context=self.context).data

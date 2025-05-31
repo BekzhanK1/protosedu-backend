@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from account.models import Child, User
 from .models import TestAnswer, Test, Question, Content, AnswerOption, TestResult
 from .serializers import (
+    TestResultSerializer,
     TestSerializer,
     QuestionSerializer,
     ContentSerializer,
@@ -264,3 +265,50 @@ class AnswerQuestionAPIView(APIView):
             {"detail": "Answer submitted successfully."},
             status=status.HTTP_201_CREATED,
         )
+
+
+class TestReviewAPIView(APIView):
+    permission_classes = [IsParent | IsStudent]
+
+    def get(self, request, *args, **kwargs):
+        user: User = request.user
+
+        if user.is_student:
+            entity = user
+        elif user.is_parent:
+            child_id = request.query_params.get("child_id")
+            if not child_id:
+                return Response(
+                    {"detail": "Child ID is required for parent users."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            entity: Child = get_object_or_404(Child, pk=child_id, parent__user=user)
+        else:
+            return Response(
+                {"detail": "You do not have permission to review tests."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        test_id = request.query_params.get("test_id")
+        if not test_id:
+            return Response(
+                {"detail": "Test ID is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        test = get_object_or_404(Test, pk=test_id)
+
+        result_queryset = TestResult.objects.filter(
+            test=test, **({"user": entity} if user.is_student else {"child": entity})
+        )
+
+        if not result_queryset.exists():
+            return Response(
+                {"detail": "No results found for this test."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = TestResultSerializer(
+            result_queryset.first(), context={"request": request}
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
