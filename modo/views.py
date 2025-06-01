@@ -1,10 +1,14 @@
+import json
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from drf_spectacular.utils import extend_schema
+from pprint import pprint
 
 from account.models import Child, User
 from .models import TestAnswer, Test, Question, Content, AnswerOption, TestResult
 from .serializers import (
+    FullTestCreateSerializer,
+    FullTestUpdateSerializer,
     TestResultSerializer,
     TestSerializer,
     TestQuestionSerializer,
@@ -15,12 +19,13 @@ from account.permissions import IsParent, IsStudent, IsSuperUserOrStaffOrReadOnl
 from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
+from .utils import clean_parsed_data, parse_nested_form_data
 
 from rest_framework.response import Response
 from django.db import transaction
 
-MAX_ANSWER_OPTIONS = 4
-MAX_CONTENTS = 4
+MAX_ANSWER_OPTIONS = 8
+MAX_CONTENTS = 8
 
 
 class TestViewSet(viewsets.ModelViewSet):
@@ -31,6 +36,35 @@ class TestViewSet(viewsets.ModelViewSet):
     search_fields = ["title", "description"]
     ordering_fields = ["order", "title"]
     ordering = ["order"]
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="create-full",
+        url_name="create_full",
+        permission_classes=[IsSuperUserOrStaffOrReadOnly],
+    )
+    def create_full(self, request, *args, **kwargs):
+        parsed_data = parse_nested_form_data(request.data, request.FILES)
+        cleaned_data = clean_parsed_data(parsed_data)
+
+        serializer = FullTestCreateSerializer(data=cleaned_data)
+        serializer.is_valid(raise_exception=True)
+        test = serializer.save()
+        return Response(
+            TestSerializer(test, context={"request": request}).data, status=201
+        )
+
+    @action(detail=True, methods=["put"], url_path="update-full")
+    def update_full(self, request, *args, **kwargs):
+        test = self.get_object()
+        parsed_data = parse_nested_form_data(request.data, request.FILES)
+        cleaned_data = clean_parsed_data(parsed_data)
+
+        serializer = FullTestUpdateSerializer(test, data=cleaned_data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        test = serializer.save()
+        return Response(TestSerializer(test, context={"request": request}).data)
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
@@ -44,32 +78,6 @@ class TestViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         serializer = self.get_serializer(instance, context={"request": self.request})
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def create(self, request):
-        test = request.data
-        print(test)
-        test_data = {
-            "title": test["title"],
-            "description": test["description"],
-            "test_type": test["test_type"],
-        }
-        test_serializer = self.get_serializer(data=test_data)
-        if test_serializer.is_valid():
-            test_instance = test_serializer.save()
-            for question in test["questions"]:
-                question["test"] = test_instance.pk
-                question_serializer = TestQuestionSerializer(data=question)
-                if question_serializer.is_valid():
-                    contents = {"text": question["title"]}
-                    if question["image"]:
-                        contents["image"] = question["image"]
-                    print(contents, question["answers"])
-                    question_serializer.save_with_contents_and_answers(
-                        contents, question["answers"]
-                    )
-                if not question_serializer.is_valid():
-                    print(question_serializer.errors)
-        return Response(test_serializer.data, status=status.HTTP_201_CREATED)
 
 
 class QuestionViewSet(viewsets.ModelViewSet):
