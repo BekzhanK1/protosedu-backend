@@ -305,21 +305,31 @@ class ContentSerializer(serializers.ModelSerializer):
 
 
 class ContentNodeSerializer(serializers.ModelSerializer):
-    lesson = serializers.SerializerMethodField()
-    task = serializers.SerializerMethodField()
+    lesson_title = serializers.SerializerMethodField()
+    task_title = serializers.SerializerMethodField()
 
     class Meta:
         model = ContentNode
-        fields = ["id", "title", "description", "chapter", "order", "lesson", "task"]
+        fields = [
+            "id",
+            "title",
+            "description",
+            "chapter",
+            "order",
+            "lesson",
+            "lesson_title",
+            "task",
+            "task_title",
+        ]
 
-    def get_lesson(self, obj):
+    def get_lesson_title(self, obj):
         if obj.lesson:
-            return {"id": obj.lesson.id, "title": obj.lesson.title}
+            return obj.lesson.title
         return None
 
-    def get_task(self, obj):
+    def get_task_title(self, obj):
         if obj.task:
-            return {"id": obj.task.id, "title": obj.task.title}
+            return obj.task.title
         return None
 
 
