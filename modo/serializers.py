@@ -321,7 +321,7 @@ class FullContentUpdateSerializer(serializers.ModelSerializer):
 
 
 class FullQuestionUpdateSerializer(serializers.ModelSerializer):
-    contents = FullContentUpdateSerializer(many=True)
+    contents = FullContentUpdateSerializer(many=True, required=False)
     answer_options = FullAnswerOptionUpdateSerializer(many=True)
 
     class Meta:
@@ -329,7 +329,7 @@ class FullQuestionUpdateSerializer(serializers.ModelSerializer):
         exclude = ["test"]
 
     def update(self, instance, validated_data):
-        contents_data = validated_data.pop("contents", [])
+        contents_data = validated_data.pop("contents", None)
         answers_data = validated_data.pop("answer_options", [])
 
         for attr, value in validated_data.items():
@@ -337,31 +337,32 @@ class FullQuestionUpdateSerializer(serializers.ModelSerializer):
         instance.save()
 
         # --- Update or create contents ---
-        existing_contents = {c.id: c for c in instance.contents.all()}
-        seen_content_ids = []
+        if contents_data is not None:
+            existing_contents = {c.id: c for c in instance.contents.all()}
+            seen_content_ids = []
 
-        for content_data in contents_data:
-            content_id = content_data.pop("id", None)  # 💥 critical fix here
+            for content_data in contents_data:
+                content_id = content_data.pop("id", None)
 
-            if content_id and content_id in existing_contents:
-                content_instance = existing_contents[content_id]
-                serializer = FullContentUpdateSerializer(
-                    content_instance, data=content_data, partial=True
-                )
-                serializer.is_valid(raise_exception=True)
-                serializer.save()
-                seen_content_ids.append(content_id)
-            else:
-                Content.objects.create(question=instance, **content_data)
+                if content_id and content_id in existing_contents:
+                    content_instance = existing_contents[content_id]
+                    serializer = FullContentUpdateSerializer(
+                        content_instance, data=content_data, partial=True
+                    )
+                    serializer.is_valid(raise_exception=True)
+                    serializer.save()
+                    seen_content_ids.append(content_id)
+                else:
+                    Content.objects.create(question=instance, **content_data)
 
-        instance.contents.exclude(id__in=seen_content_ids).delete()
+            instance.contents.exclude(id__in=seen_content_ids).delete()
 
         # --- Update or create answer options ---
         existing_answers = {a.id: a for a in instance.answer_options.all()}
         seen_answer_ids = []
 
         for answer_data in answers_data:
-            answer_id = answer_data.pop("id", None)  # 💥 critical fix here too
+            answer_id = answer_data.pop("id", None)
 
             if answer_id and answer_id in existing_answers:
                 answer_instance = existing_answers[answer_id]
