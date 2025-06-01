@@ -58,7 +58,7 @@ class TestViewSet(viewsets.ModelViewSet):
             test_instance = test_serializer.save()
             for question in test["questions"]:
                 question["test"] = test_instance.pk
-                question_serializer = QuestionSerializer(data=question)
+                question_serializer = TestQuestionSerializer(data=question)
                 if question_serializer.is_valid():
                     contents = {"text": question["title"]}
                     if question["image"]:
