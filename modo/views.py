@@ -71,20 +71,6 @@ class TestViewSet(viewsets.ModelViewSet):
                     print(question_serializer.errors)
         return Response(test_serializer.data, status=status.HTTP_201_CREATED)
 
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-
-        test_data = TestSerializer(instance).data
-
-        questions_data = []
-        for question in instance.questions.all():
-            question_data = QuestionSerializer(question).data
-            questions_data.append(question_data)
-
-        print(test_data)
-        test_data["questions"] = questions_data
-        return Response(test_data, status=status.HTTP_200_OK)
-
 
 class QuestionViewSet(viewsets.ModelViewSet):
     queryset = Question.objects.all()
