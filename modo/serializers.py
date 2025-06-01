@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Test, Question, Content, AnswerOption, TestAnswer, TestResult
+from drf_spectacular.utils import extend_schema_field
 
 
 class AnswerOptionSerializer(serializers.ModelSerializer):
@@ -35,7 +36,7 @@ class ContentSerializer(serializers.ModelSerializer):
         return data
 
 
-class QuestionSerializer(serializers.ModelSerializer):
+class TestQuestionSerializer(serializers.ModelSerializer):
     answer_options = AnswerOptionSerializer(many=True, read_only=True)
     contents = ContentSerializer(many=True, read_only=True)
 
@@ -65,7 +66,7 @@ class QuestionSerializer(serializers.ModelSerializer):
 
 
 class TestSerializer(serializers.ModelSerializer):
-    questions = QuestionSerializer(many=True, read_only=True)
+    questions = TestQuestionSerializer(many=True, read_only=True)
     is_finished = serializers.SerializerMethodField()
     score_percentage = serializers.SerializerMethodField()
 
@@ -111,7 +112,7 @@ class TestSerializer(serializers.ModelSerializer):
 
 
 class TestAnswerSerializer(serializers.ModelSerializer):
-    question = QuestionSerializer(read_only=True)
+    question = TestQuestionSerializer(read_only=True)
     answer_option = AnswerOptionSerializer(read_only=True)
 
     class Meta:
@@ -126,6 +127,7 @@ class TestResultSerializer(serializers.ModelSerializer):
         model = TestResult
         fields = "__all__"
 
+    @extend_schema_field(TestAnswerSerializer(many=True))
     def get_test_answers(self, obj):
         # Access context request
         request = self.context.get("request")

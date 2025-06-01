@@ -1,12 +1,13 @@
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
+from drf_spectacular.utils import extend_schema
 
 from account.models import Child, User
 from .models import TestAnswer, Test, Question, Content, AnswerOption, TestResult
 from .serializers import (
     TestResultSerializer,
     TestSerializer,
-    QuestionSerializer,
+    TestQuestionSerializer,
     ContentSerializer,
     AnswerOptionSerializer,
 )
@@ -87,7 +88,7 @@ class TestViewSet(viewsets.ModelViewSet):
 
 class QuestionViewSet(viewsets.ModelViewSet):
     queryset = Question.objects.all()
-    serializer_class = QuestionSerializer
+    serializer_class = TestQuestionSerializer
     permission_classes = [IsSuperUserOrStaffOrReadOnly]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["title"]
@@ -270,6 +271,33 @@ class AnswerQuestionAPIView(APIView):
 class TestReviewAPIView(APIView):
     permission_classes = [IsParent | IsStudent]
 
+    @extend_schema(
+        summary="Review Test Results",
+        description="Allows students or parents to review test results for a specific test.",
+        responses={
+            200: TestResultSerializer,
+            400: {"description": "Bad Request"},
+            403: {"description": "Forbidden"},
+            404: {"description": "Not Found"},
+        },
+        tags=["Tests"],
+        parameters=[
+            {
+                "name": "test_id",
+                "required": True,
+                "in": "query",
+                "description": "ID of the test to review.",
+                "type": "integer",
+            },
+            {
+                "name": "child_id",
+                "required": False,
+                "in": "query",
+                "description": "ID of the child (required for parent users).",
+                "type": "integer",
+            },
+        ],
+    )
     def get(self, request, *args, **kwargs):
         user: User = request.user
 

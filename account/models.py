@@ -83,6 +83,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     activation_token_expires_at = models.DateTimeField(null=True, blank=True)
     reset_password_token = models.UUIDField(editable=False, null=True, blank=True)
     reset_password_token_expires_at = models.DateTimeField(null=True, blank=True)
+    is_test_user = models.BooleanField(default=False)
 
     USERNAME_FIELD = "username"
     REQUIRED_FIELDS = []

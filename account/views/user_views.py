@@ -56,6 +56,7 @@ class CurrentUserView(APIView):
     def _get_student_data(self, user, subscription_active, is_free_trial):
         student = Student.objects.get(user=user)
         tasks_completed = user.completed_tasks.count()
+        print(user.is_test_user)
         return {
             "id": user.id,
             "username": user.username,
@@ -73,7 +74,7 @@ class CurrentUserView(APIView):
             "is_superuser": user.is_superuser,
             "is_staff": user.is_staff,
             "tasks_completed": tasks_completed,
-            "has_subscription": subscription_active,
+            "has_subscription": True if user.is_test_user else subscription_active,
             "is_free_trial": is_free_trial,
             "requires_password_change": user.requires_password_change,
         }

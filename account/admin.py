@@ -34,8 +34,9 @@ class CustomUserAdmin(BaseUserAdmin):
         "is_staff",
         "is_superuser",
         "requires_password_change",
+        "is_test_user",
     )
-    list_filter = ("is_active", "is_staff", "is_superuser", "role")
+    list_filter = ("is_active", "is_staff", "is_superuser", "role", "is_test_user")
     search_fields = (
         "username__icontains",
         "email__icontains",
@@ -58,6 +59,7 @@ class CustomUserAdmin(BaseUserAdmin):
                     "requires_password_change",
                     "is_staff",
                     "is_superuser",
+                    "is_test_user",
                     "groups",
                     "user_permissions",
                 )

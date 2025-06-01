@@ -88,9 +88,12 @@ class CourseViewSet(viewsets.ModelViewSet):
 
         if user.is_student:
             student = get_object_or_404(Student, user=user)
-            queryset = Course.objects.filter(
-                grade__in=[student.grade, -1], language__in=[student.language, "cm"]
-            )
+            if not user.is_test_user:
+                queryset = Course.objects.filter(
+                    grade__in=[student.grade, -1], language__in=[student.language, "cm"]
+                )
+            else:
+                queryset = Course.objects.all()
 
         elif user.is_parent and child_id:
             child = get_object_or_404(Child, parent=user.parent, pk=child_id)
