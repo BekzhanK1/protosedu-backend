@@ -200,8 +200,8 @@ class FullContentSerializer(serializers.ModelSerializer):
 
 
 class FullQuestionCreateSerializer(serializers.ModelSerializer):
-    contents = FullContentSerializer(many=True)
-    answer_options = FullAnswerOptionSerializer(many=True)
+    contents = FullContentSerializer(many=True, required=False)
+    answer_options = FullAnswerOptionSerializer(many=True, required=False)
 
     class Meta:
         model = Question
@@ -214,11 +214,13 @@ class FullQuestionCreateSerializer(serializers.ModelSerializer):
 
         question = Question.objects.create(test=test, **validated_data)
 
-        for content in contents_data:
-            Content.objects.create(question=question, **content)
+        if contents_data:
+            for content in contents_data:
+                Content.objects.create(question=question, **content)
 
-        for answer in answers_data:
-            AnswerOption.objects.create(question=question, **answer)
+        if answers_data:
+            for answer in answers_data:
+                AnswerOption.objects.create(question=question, **answer)
 
         return question
 
