@@ -356,3 +356,33 @@ class SchoolViewSet(viewsets.ModelViewSet):
                 {"message": f"Error processing students: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+    @action(
+        detail=True,
+        methods=["delete"],
+        url_path="delete-school",
+        permission_classes=[IsSuperUser],
+    )
+    def delete_school(self, request, pk=None):
+        """
+        Deletes a school and all associated data.
+        """
+        school = self.get_object()
+        try:
+            with transaction.atomic():
+                for school_class in school.classes.all():
+                    for student in school_class.students.all():
+                        student.user.delete()
+                    school_class.delete()
+                if school.supervisor:
+                    school.supervisor.delete()
+                school.delete()
+            return Response(
+                {"message": "School deleted successfully"},
+                status=status.HTTP_204_NO_CONTENT,
+            )
+        except Exception as e:
+            return Response(
+                {"message": f"Error deleting school: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
