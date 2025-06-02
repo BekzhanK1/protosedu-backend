@@ -11,11 +11,11 @@ from tasks.models import Chapter, Content, Course, Lesson, Section, Task, TaskCo
 User = get_user_model()
 
 
-@receiver(post_delete, sender=Student)
-def delete_user_with_student(sender, instance, **kwargs):
-    """Deletes the related User when a Student is deleted."""
-    if instance.user:
-        instance.user.delete()
+# @receiver(post_delete, sender=Student)
+# def delete_user_with_student(sender, instance, **kwargs):
+#     """Deletes the related User when a Student is deleted."""
+#     if instance.user:
+#         instance.user.delete()
 
 
 # Invalidate cache when User data changes
