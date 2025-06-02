@@ -60,22 +60,42 @@ def clean_parsed_data(data):
     Recursively clean parsed form data:
     - Extract single values from 1-element lists
     - Convert 'true'/'false' strings to booleans
+    - Force specific fields (like 'questions') to be lists
     - Strip whitespace
     """
+    list_fields = {
+        "questions",
+        "answer_options",
+        "contents",
+    }  # ← Add your multi-item fields here
+
     if isinstance(data, list):
         return [clean_parsed_data(item) for item in data]
+
     elif isinstance(data, dict):
         cleaned = {}
         for key, value in data.items():
             if isinstance(value, list) and len(value) == 1:
                 value = value[0]
+
+            # Convert string booleans
             if isinstance(value, str):
                 value = value.strip()
                 if value.lower() == "true":
                     value = True
                 elif value.lower() == "false":
                     value = False
+
+            # Wrap specific keys into lists if needed
+            if key in list_fields:
+                if isinstance(value, dict):
+                    value = [value]  # Wrap single dict into list
+                elif not isinstance(value, list):
+                    value = [value]  # Fallback for any scalar value
+
             cleaned[key] = clean_parsed_data(value)
+
         return cleaned
+
     else:
         return data
