@@ -3,7 +3,7 @@ from django.core.cache import cache
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 from account.models import Child, DailyMessage, Parent, Student
-from account.tasks import course_invalidate_cache
+from account.tasks import course_invalidate_cache, invalidate_user_cache
 from subscription.models import Subscription
 from tasks.models import Chapter, Content, Course, Lesson, Section, Task, TaskCompletion
 
@@ -18,38 +18,32 @@ def delete_user_with_student(sender, instance, **kwargs):
         instance.user.delete()
 
 
-def invalidate_user_cache(user_id):
-    """Deletes cached user data when relevant models are updated."""
-    cache_key = f"user_data_{user_id}"
-    cache.delete(cache_key)
-
-
 # Invalidate cache when User data changes
 @receiver(post_save, sender=User)
 @receiver(post_delete, sender=User)
 def clear_user_cache(sender, instance, **kwargs):
-    invalidate_user_cache(instance.id)
+    invalidate_user_cache.delay(instance.id)
 
 
 @receiver(post_save, sender=Subscription)
 @receiver(pre_delete, sender=Subscription)
 def clear_subscription_cache(sender, instance, **kwargs):
     if instance.user:
-        invalidate_user_cache(instance.user.id)
+        invalidate_user_cache.delay(instance.user.id)
 
 
 @receiver(post_save, sender=Student)
 @receiver(pre_delete, sender=Student)
 def clear_student_cache(sender, instance, **kwargs):
     if instance.user:
-        invalidate_user_cache(instance.user.id)
+        invalidate_user_cache.delay(instance.user.id)
 
 
 @receiver(post_save, sender=Parent)
 @receiver(pre_delete, sender=Parent)
 def clear_parent_cache(sender, instance, **kwargs):
     if instance.user:
-        invalidate_user_cache(instance.user.id)
+        invalidate_user_cache.delay(instance.user.id)
 
 
 def invalidate_child_cache(child_id):
@@ -61,7 +55,7 @@ def invalidate_child_cache(child_id):
 @receiver(post_save, sender=Child)
 @receiver(pre_delete, sender=Child)
 def clear_child_cache(sender, instance, **kwargs):
-    invalidate_user_cache(instance.parent.user.id)
+    invalidate_user_cache.delay(instance.parent.user.id)
     invalidate_child_cache(instance.pk)
 
 

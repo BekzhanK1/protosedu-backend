@@ -373,6 +373,15 @@ def _invalidate_keys(user, child_id, course_id, prefix, item_id):
 
 
 @shared_task
+def invalidate_user_cache(user_id):
+    """
+    Invalidate the cache for a specific user.
+    """
+    cache_key = f"user_data_{user_id}"
+    cache.delete(cache_key)
+
+
+@shared_task
 def generate_daily_messages(languages_list: Optional[List[str]] = None):
     today = timezone.now().date()
 
