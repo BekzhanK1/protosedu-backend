@@ -7,7 +7,7 @@ staticfiles/
 # Ignore environment files
 .env
 .venv/
-
+.myenv/
 
 secrets/
 
