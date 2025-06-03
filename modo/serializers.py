@@ -75,6 +75,7 @@ class TestSerializer(serializers.ModelSerializer):
         if user is None:
             return False
         if user.is_parent:
+            print(self.context)
             child_id = self.context.get("child_id")
             if child_id:
                 return obj.results.filter(

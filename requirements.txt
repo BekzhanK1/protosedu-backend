@@ -34,3 +34,4 @@ googleapis-common-protos
 drf_spectacular
 sentry-sdk[django]
 django-silk
+sqlalchemy

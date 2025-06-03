@@ -76,7 +76,8 @@ class TestViewSet(viewsets.ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        serializer = self.get_serializer(instance, context={"request": self.request})
+        child_id = request.query_params.get("child_id")
+        serializer = self.get_serializer(instance, context={"request": self.request, "child_id": child_id})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
