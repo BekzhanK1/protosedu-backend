@@ -2,6 +2,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 
 from account.models import Child
+from modo.serializers import ShortTestSerializer
 
 from .models import (
     Answer,
@@ -338,10 +339,14 @@ class ChapterSerializer(serializers.ModelSerializer):
     total_tasks = serializers.SerializerMethodField()
     completed_tasks = serializers.SerializerMethodField()
     percentage_completed = serializers.SerializerMethodField()
+    diagnostic_test = ShortTestSerializer(read_only=True)
 
     class Meta:
         model = Chapter
         fields = "__all__"
+
+    def get_diagnostic_test(self, obj):
+        return ShortTestSerializer(obj.diagnostic_test, context=self.context).data
 
     def get_total_tasks(self, obj):
         return Task.objects.filter(chapter=obj).count()

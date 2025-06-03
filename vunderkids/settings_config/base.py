@@ -68,6 +68,14 @@ if CACHE_STAGE == "docker":
             "LOCATION": "redis://redis:6379/1",
         }
     }
+
+elif CACHE_STAGE == "localhost":
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": "redis://localhost:6379/1",
+        }
+    }
 elif CACHE_STAGE == "local":
     CACHES = {
         "default": {
@@ -349,7 +357,6 @@ LOGGING = {
 #             },
 #         }
 #     )
-
 
 if CELERY_STAGE == "docker":
     CELERY_BROKER_URL = "redis://redis:6379/0"

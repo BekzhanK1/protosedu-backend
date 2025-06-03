@@ -65,6 +65,35 @@ class TestQuestionSerializer(serializers.ModelSerializer):
             )
 
 
+class ShortTestSerializer(serializers.ModelSerializer):
+    is_finished = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = Test
+        fields = ["id", "title", "description", "test_type", "is_finished"]
+        read_only_fields = ["id", "title", "description", "test_type", "is_finished"]
+
+    def get_is_finished(self, obj):
+        print("Hey")
+        user = self.context.get("request").user
+        if user is None:
+            return False
+        if user.is_parent:
+            child_id = self.context.get("child_id")
+            if child_id:
+                return obj.results.filter(
+                    child__id=child_id, is_finished=True, test=obj
+                ).exists()
+            else:
+                raise serializers.ValidationError(
+                    "Child ID is required for parent users."
+                )
+        elif user.is_student:
+            return obj.results.filter(user=user, is_finished=True, test=obj).exists()
+        else:
+            return False
+
+
 class TestSerializer(serializers.ModelSerializer):
     questions = TestQuestionSerializer(many=True, read_only=True)
     is_finished = serializers.SerializerMethodField()

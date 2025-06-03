@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from modo.models import Test
 
 from account.models import GRADE_CHOICES, LANGUAGE_CHOICES, Child
 
@@ -61,6 +62,13 @@ class Chapter(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     order = models.IntegerField(default=0)
+    diagnostic_test = models.ForeignKey(
+        Test,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="testing_chapters",
+    )
     section = models.ForeignKey(
         Section, related_name="chapters", null=True, on_delete=models.CASCADE
     )
