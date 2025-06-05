@@ -70,12 +70,49 @@ class AnswerOption(models.Model):
         return f"{self.text[:30] if self.text else 'Image Option'} - {'Correct' if self.is_correct else 'Incorrect'}"
 
 
+class TestResult(models.Model):
+    test = models.ForeignKey(Test, related_name="results", on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        "account.User",
+        related_name="test_results",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
+    child = models.ForeignKey(
+        "account.Child",
+        related_name="test_results",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
+    attempt_number = models.PositiveIntegerField(default=1)
+    is_finished = models.BooleanField(default=False)
+    score = models.IntegerField(default=0)
+    total_questions = models.IntegerField(default=0)
+    correct_answers = models.IntegerField(default=0)
+    date_taken = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("test", "user", "child", "attempt_number")
+        ordering = ["-date_taken"]
+
+    def __str__(self):
+        user_or_child = (
+            f"User: {self.user.id}" if self.user else f"Child: {self.child.id}"
+        )
+        return f"{user_or_child} - {self.test.title} - Score: {self.score}"
+
+
 class TestAnswer(models.Model):
     question = models.ForeignKey(
         Question, related_name="test_answers", on_delete=models.CASCADE
     )
     answer_option = models.ForeignKey(
         AnswerOption, related_name="test_answers", on_delete=models.CASCADE
+    )
+    test_result = models.ForeignKey(
+        TestResult, related_name="answers", on_delete=models.CASCADE
     )
     user = models.ForeignKey(
         "account.User",
@@ -112,36 +149,3 @@ class TestAnswer(models.Model):
                 name="unique_child_question",
             ),
         ]
-
-
-class TestResult(models.Model):
-    test = models.ForeignKey(Test, related_name="results", on_delete=models.CASCADE)
-    user = models.ForeignKey(
-        "account.User",
-        related_name="test_results",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-    )
-    child = models.ForeignKey(
-        "account.Child",
-        related_name="test_results",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-    )
-    is_finished = models.BooleanField(default=False)
-    score = models.IntegerField(default=0)
-    total_questions = models.IntegerField(default=0)
-    correct_answers = models.IntegerField(default=0)
-    date_taken = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ("test", "user", "child")
-        ordering = ["-date_taken"]
-
-    def __str__(self):
-        user_or_child = (
-            f"User: {self.user.id}" if self.user else f"Child: {self.child.id}"
-        )
-        return f"{user_or_child} - {self.test.title} - Score: {self.score}"

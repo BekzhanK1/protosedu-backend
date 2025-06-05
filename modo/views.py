@@ -77,7 +77,9 @@ class TestViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         child_id = request.query_params.get("child_id")
-        serializer = self.get_serializer(instance, context={"request": self.request, "child_id": child_id})
+        serializer = self.get_serializer(
+            instance, context={"request": self.request, "child_id": child_id}
+        )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -172,8 +174,10 @@ class AnswerQuestionAPIView(APIView):
     def post(self, request, *args, **kwargs):
         user: User = request.user
 
+        # Step 1: Identify the acting entity (user or child)
         if user.is_student:
-            entity = user
+            entity: User = user
+            result_filter = {"user": entity}
         elif user.is_parent:
             child_id = request.query_params.get("child_id")
             if not child_id:
@@ -182,12 +186,14 @@ class AnswerQuestionAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             entity: Child = get_object_or_404(Child, pk=child_id, parent__user=user)
+            result_filter = {"child": entity}
         else:
             return Response(
                 {"detail": "You do not have permission to answer questions."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        # Step 2: Get question and answer option
         question_id = request.query_params.get("question_id")
         if not question_id:
             return Response(
@@ -196,66 +202,59 @@ class AnswerQuestionAPIView(APIView):
             )
 
         question = get_object_or_404(Question, pk=question_id)
+        answer_option_id = request.data.get("answer_option")
 
-        answer_options = question.answer_options.all()
-        if not answer_options.exists():
-            return Response(
-                {"detail": "No answer options available for this question."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        data = request.data
-        answer_option = data.get("answer_option")
-        if not answer_option:
+        if not answer_option_id:
             return Response(
                 {"detail": "Answer option is required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        answer_option_instance = get_object_or_404(
-            AnswerOption, pk=answer_option, question=question
+        answer_option = get_object_or_404(
+            AnswerOption, pk=answer_option_id, question=question
         )
 
-        with transaction.atomic():
-            filter_kwargs = {"question": question}
-            result_kwargs = {"test": question.test}
-            if user.is_student:
-                filter_kwargs["user"] = entity
-                result_kwargs["user"] = entity
-            else:
-                filter_kwargs["child"] = entity
-                result_kwargs["child"] = entity
+        # Step 3: Find or create the test result for current attempt
+        result_filter["test"] = question.test
+        last_result = (
+            TestResult.objects.filter(**result_filter)
+            .order_by("-attempt_number")
+            .first()
+        )
 
-            test_answer, _ = TestAnswer.objects.update_or_create(
-                question=question,
-                defaults={
-                    "answer_option": answer_option_instance,
-                    "is_correct": answer_option_instance.is_correct,
-                    **filter_kwargs,
-                },
+        if last_result and not last_result.is_finished:
+            test_result = last_result
+        else:
+            next_attempt = (last_result.attempt_number + 1) if last_result else 1
+            test_result = TestResult.objects.create(
+                **result_filter, attempt_number=next_attempt
             )
 
-            answers = TestAnswer.objects.filter(
-                question__test=question.test,
-                **({"user": entity} if user.is_student else {"child": entity}),
-            )
+        # Step 4: Save or update the answer for this question in current attempt
+        TestAnswer.objects.update_or_create(
+            test_result=test_result,
+            question=question,
+            user=entity if user.is_student else None,
+            child=entity if user.is_parent else None,
+            defaults={
+                "answer_option": answer_option,
+                "is_correct": answer_option.is_correct,
+            },
+        )
 
-            answered_questions = answers.count()
-            correct_answers = answers.filter(is_correct=True).count()
+        # Step 5: Calculate progress and update the test result
+        answers = TestAnswer.objects.filter(test_result=test_result)
+        answered_questions = answers.count()
+        correct_answers = answers.filter(is_correct=True).count()
+        total_questions = question.test.questions.count()
 
-            total_questions = question.test.questions.count()
-
-            TestResult.objects.update_or_create(
-                defaults={
-                    "score": (correct_answers // total_questions) * 100,
-                    "correct_answers": correct_answers,
-                    "total_questions": total_questions,
-                    "is_finished": (
-                        True if total_questions == answered_questions else False
-                    ),
-                },
-                **result_kwargs,
-            )
+        test_result.total_questions = total_questions
+        test_result.correct_answers = correct_answers
+        test_result.score = (
+            round((correct_answers / total_questions) * 100) if total_questions else 0
+        )
+        test_result.is_finished = answered_questions == total_questions
+        test_result.save()
 
         return Response(
             {"detail": "Answer submitted successfully."},
@@ -313,6 +312,18 @@ class TestReviewAPIView(APIView):
             )
 
         test_id = request.query_params.get("test_id")
+        attempt_number = request.query_params.get("attempt_number")
+        if attempt_number:
+            try:
+                attempt_number = int(attempt_number)
+            except ValueError:
+                return Response(
+                    {"detail": "Attempt number must be an integer."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            attempt_number = None
+
         if not test_id:
             return Response(
                 {"detail": "Test ID is required."},
@@ -325,13 +336,16 @@ class TestReviewAPIView(APIView):
             test=test, **({"user": entity} if user.is_student else {"child": entity})
         )
 
-        if not result_queryset.exists():
+        if attempt_number is not None:
+            result_queryset = result_queryset.filter(attempt_number=attempt_number)
+
+        test_result = result_queryset.order_by("-attempt_number").first()
+
+        if not test_result:
             return Response(
-                {"detail": "No results found for this test."},
+                {"detail": "No test results found for this test."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        serializer = TestResultSerializer(
-            result_queryset.first(), context={"request": request}
-        )
+        serializer = TestResultSerializer(test_result, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)

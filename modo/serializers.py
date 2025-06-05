@@ -93,10 +93,50 @@ class ShortTestSerializer(serializers.ModelSerializer):
             return False
 
 
+class ShortTestResultSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = TestResult
+        fields = [
+            "attempt_number",
+            "is_finished",
+            "score",
+            "total_questions",
+            "correct_answers",
+        ]
+        read_only_fields = [
+            "attempt_number",
+            "is_finished",
+            "score",
+            "total_questions",
+            "correct_answers",
+        ]
+
+
 class TestSerializer(serializers.ModelSerializer):
     questions = TestQuestionSerializer(many=True, read_only=True)
     is_finished = serializers.SerializerMethodField()
     score_percentage = serializers.SerializerMethodField()
+    test_results = serializers.SerializerMethodField()
+
+
+    def get_test_results(self, obj):
+        request = self.context.get("request")
+        if not request:
+            return []
+
+        user = request.user
+        if user.is_parent:
+            child_id = self.context.get("child_id")
+            if not child_id:
+                raise serializers.ValidationError("Child ID is required for parent users.")
+            results = obj.results.filter(child__id=child_id)
+        elif user.is_student:
+            results = obj.results.filter(user=user)
+        else:
+            return []
+
+        return ShortTestResultSerializer(results, many=True).data
 
     def get_is_finished(self, obj):
         user = self.context.get("request").user
