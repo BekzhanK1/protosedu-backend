@@ -74,7 +74,6 @@ class ShortTestSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "title", "description", "test_type", "is_finished"]
 
     def get_is_finished(self, obj):
-        print("Hey")
         user = self.context.get("request").user
         if user is None:
             return False

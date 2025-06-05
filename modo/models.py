@@ -29,7 +29,7 @@ class Test(models.Model):
 
 class Question(models.Model):
     test = models.ForeignKey(Test, related_name="questions", on_delete=models.CASCADE)
-    title = models.CharField(max_length=255)
+    title = models.TextField()
     order = models.IntegerField(default=0)
 
     class Meta:

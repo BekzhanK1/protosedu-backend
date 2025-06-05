@@ -62,12 +62,19 @@ class Chapter(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     order = models.IntegerField(default=0)
-    diagnostic_test = models.ForeignKey(
+    before_diagnostic_test = models.ForeignKey(
         Test,
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name="testing_chapters",
+        related_name="testing_chapters_before",
+    )
+    after_diagnostic_test = models.ForeignKey(
+        Test,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="testing_chapters_after",
     )
     section = models.ForeignKey(
         Section, related_name="chapters", null=True, on_delete=models.CASCADE

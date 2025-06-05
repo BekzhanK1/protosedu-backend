@@ -2,6 +2,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 
 from account.models import Child
+from modo.models import Test
 from modo.serializers import ShortTestSerializer
 
 from .models import (
@@ -339,13 +340,28 @@ class ChapterSerializer(serializers.ModelSerializer):
     total_tasks = serializers.SerializerMethodField()
     completed_tasks = serializers.SerializerMethodField()
     percentage_completed = serializers.SerializerMethodField()
-    diagnostic_test = ShortTestSerializer(read_only=True)
+    before_diagnostic_test_detail = ShortTestSerializer(
+        source="before_diagnostic_test", read_only=True
+    )
+    after_diagnostic_test_detail = ShortTestSerializer(
+        source="after_diagnostic_test", read_only=True
+    )
+
+    before_diagnostic_test = serializers.PrimaryKeyRelatedField(
+        queryset=Test.objects.all(), write_only=True, required=False, allow_null=True
+    )
+    after_diagnostic_test = serializers.PrimaryKeyRelatedField(
+        queryset=Test.objects.all(), write_only=True, required=False, allow_null=True
+    )
 
     class Meta:
         model = Chapter
         fields = "__all__"
 
-    def get_diagnostic_test(self, obj):
+    def get_before_diagnostic_test(self, obj):
+        return ShortTestSerializer(obj.diagnostic_test, context=self.context).data
+
+    def get_after_diagnostic_test(self, obj):
         return ShortTestSerializer(obj.diagnostic_test, context=self.context).data
 
     def get_total_tasks(self, obj):
