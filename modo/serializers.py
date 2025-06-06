@@ -70,8 +70,22 @@ class ShortTestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Test
-        fields = ["id", "title", "description", "test_type", "is_finished"]
-        read_only_fields = ["id", "title", "description", "test_type", "is_finished"]
+        fields = [
+            "id",
+            "title",
+            "shuffle_questions",
+            "description",
+            "test_type",
+            "is_finished",
+        ]
+        read_only_fields = [
+            "id",
+            "title",
+            "shuffle_questions",
+            "description",
+            "test_type",
+            "is_finished",
+        ]
 
     def get_is_finished(self, obj):
         user = self.context.get("request").user
@@ -119,7 +133,6 @@ class TestSerializer(serializers.ModelSerializer):
     score_percentage = serializers.SerializerMethodField()
     test_results = serializers.SerializerMethodField()
 
-
     def get_test_results(self, obj):
         request = self.context.get("request")
         if not request:
@@ -129,7 +142,9 @@ class TestSerializer(serializers.ModelSerializer):
         if user.is_parent:
             child_id = self.context.get("child_id")
             if not child_id:
-                raise serializers.ValidationError("Child ID is required for parent users.")
+                raise serializers.ValidationError(
+                    "Child ID is required for parent users."
+                )
             results = obj.results.filter(child__id=child_id)
         elif user.is_student:
             results = obj.results.filter(user=user)
@@ -299,7 +314,14 @@ class FullTestCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Test
-        fields = ["title", "description", "test_type", "order", "questions"]
+        fields = [
+            "title",
+            "shuffle_questions",
+            "description",
+            "test_type",
+            "order",
+            "questions",
+        ]
 
     def create(self, validated_data):
         print(validated_data)
@@ -439,7 +461,14 @@ class FullTestUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Test
-        fields = ["title", "description", "test_type", "order", "questions"]
+        fields = [
+            "title",
+            "shuffle_questions",
+            "description",
+            "test_type",
+            "order",
+            "questions",
+        ]
 
     def update(self, instance, validated_data):
         questions_data = validated_data.pop("questions")

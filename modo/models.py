@@ -19,6 +19,7 @@ class Test(models.Model):
     description = models.TextField(blank=True, null=True)
     order = models.IntegerField(default=0)
     test_type = models.CharField(max_length=20, choices=TEST_TYPE, default="modo")
+    shuffle_questions = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["order"]
