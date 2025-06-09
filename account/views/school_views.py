@@ -3,6 +3,7 @@ from django.db import transaction
 from django.db.models.signals import post_save
 from datetime import datetime
 
+from django.http import FileResponse
 import pandas as pd
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -362,6 +363,100 @@ class SchoolViewSet(viewsets.ModelViewSet):
             print("4", e)
             return Response(
                 {"message": f"Error processing students: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="list-credentials",
+        permission_classes=[IsSuperUser],
+    )
+    def list_credentials(self, request):
+        dir_path = os.path.join(settings.MEDIA_ROOT, "school-credentials")
+        if not os.path.exists(dir_path):
+            return Response({"files": []}, status=status.HTTP_200_OK)
+
+        files = []
+        for filename in sorted(os.listdir(dir_path), reverse=True):
+            if filename.endswith(".xlsx"):
+
+                def human_readable_size(size):
+                    for unit in ["B", "KB", "MB", "GB", "TB"]:
+                        if size < 1024:
+                            return f"{size:.2f} {unit}"
+                        size /= 1024
+                    return f"{size:.2f} PB"
+
+                files.append(
+                    {
+                        "name": filename,
+                        "url": request.build_absolute_uri(
+                            f"/media/school-credentials/{filename}"
+                        ),
+                        "created_at": datetime.fromtimestamp(
+                            os.path.getmtime(os.path.join(dir_path, filename))
+                        ).strftime("%Y-%m-%d %H:%M:%S"),
+                        "size": human_readable_size(
+                            os.path.getsize(os.path.join(dir_path, filename))
+                        ),
+                    }
+                )
+
+        return Response({"files": files}, status=status.HTTP_200_OK)
+
+    from django.http import FileResponse
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="download-credential",
+        permission_classes=[IsSuperUser],
+    )
+    def download_credential(self, request):
+        filename = request.query_params.get("filename")
+        if not filename:
+            return Response({"message": "Filename is required"}, status=400)
+
+        # Prevent path traversal attacks
+        if ".." in filename or "/" in filename or "\\" in filename:
+            return Response({"message": "Invalid filename"}, status=400)
+
+        file_path = os.path.join(settings.MEDIA_ROOT, "school-credentials", filename)
+        if not os.path.exists(file_path):
+            return Response({"message": "File not found"}, status=404)
+
+        return FileResponse(
+            open(file_path, "rb"),
+            as_attachment=True,
+            filename=filename,
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+    @action(
+        detail=False,
+        methods=["delete"],
+        url_path="delete-credential",
+        permission_classes=[IsSuperUser],
+    )
+    def delete_credential(self, request):
+        filename = request.query_params.get("filename")
+        if not filename:
+            return Response({"message": "Filename is required"}, status=400)
+
+        if ".." in filename or "/" in filename or "\\" in filename:
+            return Response({"message": "Invalid filename"}, status=400)
+
+        path = os.path.join(settings.MEDIA_ROOT, "school-credentials", filename)
+        if not os.path.exists(path):
+            return Response({"message": "File not found"}, status=404)
+
+        try:
+            os.remove(path)
+            return Response({"message": "File deleted successfully"}, status=204)
+        except Exception as e:
+            return Response(
+                {"message": f"Error deleting file: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
