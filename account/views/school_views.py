@@ -1,5 +1,6 @@
 import os
 from django.db import transaction
+from django.db.models.signals import post_save
 from datetime import datetime
 
 import pandas as pd
@@ -11,6 +12,11 @@ from account.models import Class, School, Student, User
 from account.permissions import IsSuperUser
 from account.serializers import SchoolSerializer, SupervisorRegistrationSerializer
 from subscription.models import Plan, Subscription
+from account.signals import (
+    clear_user_cache,
+    clear_student_cache,
+    clear_subscription_cache,
+)
 
 from ..tasks import send_mass_activation_email, send_user_credentials_to_admins
 from ..utils import cyrillic_to_username
@@ -216,6 +222,7 @@ class SchoolViewSet(viewsets.ModelViewSet):
 
         try:
             hashed_password = make_password(DEFAULT_PASSWORD)
+            disconnect_signals()
             with transaction.atomic():
                 school = School.objects.get(pk=school_id)
 
@@ -323,6 +330,7 @@ class SchoolViewSet(viewsets.ModelViewSet):
                         grade=grade,
                     )
 
+            reconnect_signals()
             if user_credentials:
                 timestamp = datetime.now().strftime("%Y-%m-%d_%H%M")
                 filename = f"credentials_{school.name}-{school.city}_{timestamp}.xlsx"
@@ -369,6 +377,7 @@ class SchoolViewSet(viewsets.ModelViewSet):
         """
         school = self.get_object()
         try:
+            disconnect_signals()
             with transaction.atomic():
                 for school_class in school.classes.all():
                     for student in school_class.students.all():
@@ -377,6 +386,7 @@ class SchoolViewSet(viewsets.ModelViewSet):
                 if school.supervisor:
                     school.supervisor.delete()
                 school.delete()
+            reconnect_signals()
             return Response(
                 {"message": "School deleted successfully"},
                 status=status.HTTP_204_NO_CONTENT,
@@ -386,3 +396,23 @@ class SchoolViewSet(viewsets.ModelViewSet):
                 {"message": f"Error deleting school: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+def disconnect_signals():
+    """
+    Disconnects signals to prevent cache clearing during bulk operations.
+    This is useful when creating or updating multiple objects at once.
+    """
+    post_save.disconnect(clear_user_cache, sender=User)
+    post_save.disconnect(clear_student_cache, sender=Student)
+    post_save.disconnect(clear_subscription_cache, sender=Subscription)
+
+
+def reconnect_signals():
+    """
+    Reconnects signals after bulk operations are done.
+    This is useful to restore the normal behavior of cache clearing.
+    """
+    post_save.connect(clear_user_cache, sender=User)
+    post_save.connect(clear_student_cache, sender=Student)
+    post_save.connect(clear_subscription_cache, sender=Subscription)
