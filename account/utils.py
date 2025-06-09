@@ -1,6 +1,7 @@
 import secrets
 
 import re
+from contextlib import contextmanager
 
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
@@ -146,3 +147,17 @@ def get_cache_key(prefix, user, child_id=None, **kwargs):
         key += f"_{k}_{v}"
     print("[get_cache_key]", key)
     return key
+
+
+@contextmanager
+def disable_signals(signal_receiver_pairs):
+    """Temporarily disconnect model signals."""
+    disconnected = []
+    try:
+        for signal, receiver, sender in signal_receiver_pairs:
+            signal.disconnect(receiver, sender)
+            disconnected.append((signal, receiver, sender))
+        yield
+    finally:
+        for signal, receiver, sender in disconnected:
+            signal.connect(receiver, sender)
