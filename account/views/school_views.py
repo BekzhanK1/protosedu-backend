@@ -6,14 +6,26 @@ import pandas as pd
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from celery import group
+
+from django.db.models.signals import post_save, post_delete
 
 from account.models import Class, School, Student, User
 from account.permissions import IsSuperUser
 from account.serializers import SchoolSerializer, SupervisorRegistrationSerializer
 from subscription.models import Plan, Subscription
 
-from ..tasks import send_mass_activation_email, send_user_credentials_to_admins
-from ..utils import cyrillic_to_username
+from ..tasks import (
+    send_mass_activation_email,
+    send_user_credentials_to_admins,
+    invalidate_user_cache,
+)
+from ..utils import cyrillic_to_username, disable_signals
+from account.signals import (
+    clear_user_cache,
+    clear_student_cache,
+    clear_subscription_cache,
+)
 
 from django.conf import settings
 from django.contrib.auth.hashers import make_password
@@ -216,7 +228,13 @@ class SchoolViewSet(viewsets.ModelViewSet):
 
         try:
             hashed_password = make_password(DEFAULT_PASSWORD)
-            with transaction.atomic():
+            signals_to_disable = [
+                (post_save, clear_user_cache, User),
+                (post_delete, clear_user_cache, User),
+                (post_save, clear_student_cache, Student),
+                (post_save, clear_subscription_cache, Subscription),
+            ]
+            with disable_signals(signals_to_disable), transaction.atomic():
                 school = School.objects.get(pk=school_id)
 
                 exceptions = []
@@ -278,13 +296,12 @@ class SchoolViewSet(viewsets.ModelViewSet):
                             "role": "student",
                             "is_active": True,
                             "requires_password_change": True,
+                            "password": hashed_password,
                         },
                     )
                     if created:
                         plan, _ = Plan.objects.get_or_create(duration=subcriptionPlan)
                         Subscription.objects.create(user=user, plan=plan)
-                        user.password = hashed_password
-                        user.save()
                         new_user_ids.append(user.pk)
                         user_credentials.append(
                             {
@@ -337,6 +354,9 @@ class SchoolViewSet(viewsets.ModelViewSet):
                 credentials_file = os.path.join(credentials_dir, filename)
                 df.to_excel(credentials_file, index=False)
                 send_user_credentials_to_admins.delay(credentials_file, school.name)
+
+            if new_user_ids:
+                group(invalidate_user_cache.s(uid) for uid in new_user_ids).apply_async()
 
             # if new_user_ids:
             #     send_mass_activation_email.delay(new_user_ids)
