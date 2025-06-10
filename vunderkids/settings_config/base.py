@@ -16,6 +16,7 @@ STAGE = os.getenv("STAGE", "DEV")
 
 CACHE_STAGE = os.getenv("CACHE_STAGE", "docker")
 CELERY_STAGE = os.getenv("CELERY_STAGE", "docker")
+CHANNELS_STAGE = os.getenv("CHANNELS_STAGE", "docker")
 
 
 ADMIN_EMAILS = [
@@ -41,6 +42,7 @@ INSTALLED_APPS = [
     "modo",
     "leagues",
     "documents",
+    "ai_tutor",
     "storages",
 ]
 if STAGE == "DEV":
@@ -59,6 +61,26 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {"anon": "100/minute", "user": "1000/minute"},
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
+
+
+if CHANNELS_STAGE == "docker":
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [("redis", 6379)],
+            },
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [("localhost", 6379)],
+            },
+        },
+    }
 
 
 if CACHE_STAGE == "docker":

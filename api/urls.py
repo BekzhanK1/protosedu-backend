@@ -7,6 +7,7 @@ urlpatterns = [
     path("", include("subscription.urls")),
     path("", include("documents.urls")),
     path("", include("leagues.urls")),
+    path("tutor/", include("ai_tutor.urls")),
     path("modo/", include("modo.urls")),
     path("logs/", stream_log),
 ]
