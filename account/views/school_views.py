@@ -8,6 +8,7 @@ import pandas as pd
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from account.tasks import decrement_schoolclass_grade, increment_schoolclass_grade
 
 from account.models import Class, School, Student, User
 from account.permissions import IsSuperUser
@@ -41,6 +42,118 @@ class SchoolViewSet(viewsets.ModelViewSet):
             school = serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(
+        detail=True,
+        methods=["patch"],
+        url_path="increment-grade",
+        url_name="increment-grade",
+    )
+    def increment_grade(self, request, pk=None):
+        school = self.get_object()
+        classes = school.classes.all()
+
+        if not classes:
+            return Response(
+                {"message": "No classes found for this school"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            for school_class in classes:
+                increment_schoolclass_grade.delay(school_class.id)
+
+            return Response(
+                {"message": "Grades incremented successfully"},
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                {"message": f"Error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(
+        detail=True,
+        methods=["patch"],
+        url_path="decrement-grade",
+        url_name="decrement-grade",
+    )
+    def decrement_grade(self, request, pk=None):
+        school = self.get_object()
+        classes = school.classes.all()
+
+        if not classes:
+            return Response(
+                {"message": "No classes found for this school"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            for school_class in classes:
+                decrement_schoolclass_grade.delay(school_class.id)
+
+            return Response(
+                {"message": "Grades decremented successfully"},
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                {"message": f"Error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(
+        detail=False,
+        methods=["patch"],
+        url_path="increment-grades-global",
+        url_name="increment-grades-global",
+        permission_classes=[IsSuperUser],
+    )
+    def increment_grades_global(self, request):
+        for school in School.objects.all():
+            classes = school.classes.all()
+            if not classes:
+                continue
+
+            try:
+                for school_class in classes:
+                    increment_schoolclass_grade.delay(school_class.id)
+            except Exception as e:
+                return Response(
+                    {"message": f"Error occurred: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+        return Response(
+            {"message": "All school grades incremented successfully"},
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=False,
+        methods=["patch"],
+        url_path="decrement-grades-global",
+        url_name="decrement-grades-global",
+        permission_classes=[IsSuperUser],
+    )
+    def decrement_grades_global(self, request):
+        for school in School.objects.all():
+            classes = school.classes.all()
+            if not classes:
+                continue
+
+            try:
+                for school_class in classes:
+                    decrement_schoolclass_grade.delay(school_class.id)
+            except Exception as e:
+                return Response(
+                    {"message": f"Error occurred: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+        return Response(
+            {"message": "All school grades decremented successfully"},
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=["post"])
     def assign_supervisor(self, request, pk=None):

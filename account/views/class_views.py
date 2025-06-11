@@ -6,6 +6,7 @@ from django.db import transaction
 from account.models import Class, LANGUAGE_CHOICES
 from account.permissions import IsSuperUser
 from account.serializers import ClassSerializer
+from account.tasks import increment_schoolclass_grade, decrement_schoolclass_grade
 
 
 class ClassViewSet(viewsets.ModelViewSet):
@@ -27,6 +28,52 @@ class ClassViewSet(viewsets.ModelViewSet):
             school_class = serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(
+        detail=True,
+        methods=["patch"],
+        url_path="increment-grade",
+        url_name="increment-grade",
+        permission_classes=[IsSuperUser],
+    )
+    def increment_grade(self, request, *args, **kwargs):
+        school_class = self.get_object()
+        if school_class.grade >= 11:
+            return Response(
+                {"error": "cannot increment grade beyond 11"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        task_status = increment_schoolclass_grade.delay(school_class.id)
+        print(f"Task status: {task_status}")
+
+        return Response(
+            {"status": f"grade incremented to {school_class.grade}"},
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["patch"],
+        url_path="decrement-grade",
+        url_name="decrement-grade",
+        permission_classes=[IsSuperUser],
+    )
+    def decrement_grade(self, request, *args, **kwargs):
+        school_class = self.get_object()
+        if school_class.grade < 1:
+            return Response(
+                {"error": "cannot decrement grade below 0"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        task_status = decrement_schoolclass_grade.delay(school_class.id)
+        print(f"Task status: {task_status}")
+
+        return Response(
+            {"status": f"grade decremented to {school_class.grade}"},
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=["patch"], permission_classes=[IsSuperUser])
     def change_language(self, request, *args, **kwargs):

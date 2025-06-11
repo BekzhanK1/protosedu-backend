@@ -8,6 +8,7 @@ from django.conf import settings
 from django.core.cache import cache
 from account.utils import get_cache_key
 from django.contrib.auth.hashers import make_password
+from django.db import transaction
 from django.core.mail import (
     EmailMultiAlternatives,
     get_connection,
@@ -21,6 +22,7 @@ import pandas as pd
 
 from account.models import (
     Child,
+    Class,
     DailyMessage,
     MotivationalPhrase,
     Parent,
@@ -28,7 +30,12 @@ from account.models import (
     User,
     LANGUAGE_CHOICES,
 )
-from account.utils import generate_password, render_email
+from account.utils import (
+    generate_password,
+    render_email,
+    get_school_year,
+    get_next_school_year,
+)
 from subscription.models import Subscription
 import logging
 
@@ -425,3 +432,65 @@ def generate_daily_messages(languages_list: Optional[List[str]] = None):
             print(
                 f"Updated daily message for {lang} on {today}: {selected_phrase.text}"
             )
+
+
+@shared_task
+def increment_schoolclass_grade(school_class_id):
+    school_class = Class.objects.get(pk=school_class_id)
+    previous_grade = school_class.grade
+    school = school_class.school
+    if not school:
+        return {"error": "School not found"}
+
+    if not school_class:
+        return {"error": "School class not found"}
+
+    if school_class.grade >= 11:
+        return {"error": "Cannot increment grade beyond 11"}
+
+    with transaction.atomic():
+        school_year = get_next_school_year()
+        if school.school_year != school_year:
+            school.school_year = school_year
+            school.save()
+        school_class.grade += 1
+        school_class.save()
+
+        school_class.students.update(grade=school_class.grade)
+
+    print(
+        f"Grade incremented to {school_class.grade} for class {previous_grade}{school_class.section}"
+    )
+
+    return {"status": f"Grade incremented to {school_class.grade}"}
+
+
+@shared_task
+def decrement_schoolclass_grade(school_class_id):
+    school_class = Class.objects.get(pk=school_class_id)
+    previous_grade = school_class.grade
+    school = school_class.school
+    if not school:
+        return {"error": "School not found"}
+
+    if not school_class:
+        return {"error": "School class not found"}
+
+    if school_class.grade < 1:
+        return {"error": "Cannot decrement grade below 0"}
+
+    with transaction.atomic():
+        school_year = get_school_year()
+        if school.school_year != school_year:
+            school.school_year = school_year
+            school.save()
+        school_class.grade -= 1
+        school_class.save()
+
+        school_class.students.update(grade=school_class.grade)
+
+    print(
+        f"Grade decremented to {school_class.grade} for class {previous_grade}{school_class.section}"
+    )
+
+    return {"status": f"Grade decremented to {school_class.grade}"}

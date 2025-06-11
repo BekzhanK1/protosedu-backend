@@ -4,6 +4,7 @@ import re
 
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from datetime import datetime
 
 
 def render_email(first_name, last_name, current_cups, level, dashboard_url):
@@ -146,3 +147,21 @@ def get_cache_key(prefix, user, child_id=None, **kwargs):
         key += f"_{k}_{v}"
     print("[get_cache_key]", key)
     return key
+
+
+def get_school_year():
+    now = datetime.now()
+    year = now.year
+    if now.month < 9:  # Before September
+        return f"{year - 1}-{year}"
+    else:
+        return f"{year}-{year + 1}"
+
+
+def get_next_school_year():
+    now = datetime.now()
+    year = now.year
+    if now.month < 9:
+        return f"{year}-{year + 1}"
+    else:
+        return f"{year + 1}-{year + 2}"

@@ -9,6 +9,7 @@ from django.contrib.auth.models import (
 from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
+from .utils import get_school_year
 
 GRADE_CHOICES = [(i, str(i)) for i in range(-1, 12)]  # -1 means for everyone
 SECTION_CHOICES = (
@@ -139,6 +140,10 @@ class School(models.Model):
     email = models.EmailField(unique=False)
     supervisor = models.OneToOneField(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name="school"
+    )
+    school_year = models.CharField(
+        max_length=10,
+        default=get_school_year(),
     )
 
     def __str__(self):
