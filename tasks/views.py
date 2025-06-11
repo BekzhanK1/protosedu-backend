@@ -78,6 +78,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         user = request.user
         child_id = request.query_params.get("child_id")
         cache_key = get_cache_key("courses", user, child_id)
+        print(cache_key)
 
         cached_data = cache.get(cache_key)
         if cached_data:
@@ -90,7 +91,9 @@ class CourseViewSet(viewsets.ModelViewSet):
             student = get_object_or_404(Student, user=user)
             if not user.is_test_user:
                 queryset = Course.objects.filter(
-                    grade__in=[student.grade, -1], language__in=[student.language, "cm"]
+                    grade__in=[student.grade, -1],
+                    language__in=[student.language, "cm"],
+                    is_active=True,
                 )
             else:
                 queryset = Course.objects.all()
@@ -98,7 +101,9 @@ class CourseViewSet(viewsets.ModelViewSet):
         elif user.is_parent and child_id:
             child = get_object_or_404(Child, parent=user.parent, pk=child_id)
             queryset = Course.objects.filter(
-                grade__in=[child.grade, -1], language__in=[child.language, "cm"]
+                grade__in=[child.grade, -1],
+                language__in=[child.language, "cm"],
+                is_active=True,
             )
 
         else:
@@ -275,6 +280,47 @@ class ContentViewSet(viewsets.ModelViewSet):
             "order"
         )
 
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        user = request.user
+        child_id = request.query_params.get("child_id")
+
+        cache_key = get_cache_key("content", user, child_id, id=instance.id)
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            print("Cache hit:", cache_key)
+            return Response(cached_data)
+
+        print("Cache miss")
+
+        serializer = self.serializer_class(
+            instance, context={"request": request, "child_id": child_id}
+        )
+        cache.set(cache_key, serializer.data, CACHE_TIMEOUT)
+        return Response(serializer.data)
+
+    def list(self, request, *args, **kwargs):
+        user = request.user
+        chapter_pk = self.kwargs["chapter_pk"]
+        child_id = request.query_params.get("child_id")
+
+        cache_key = get_cache_key("contents", user, child_id, chapter=chapter_pk)
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            print("Cache hit", cache_key)
+            return Response(cached_data)
+
+        print("Cache miss")
+
+        queryset = self.get_queryset()
+
+        serializer = self.serializer_class(
+            queryset, many=True, context={"request": request, "child_id": child_id}
+        )
+
+        cache.set(cache_key, serializer.data, CACHE_TIMEOUT)
+        return Response(serializer.data)
+
     def create(self, request, chapter_pk=None):
         data = request.data.copy()
         data["chapter"] = chapter_pk
@@ -368,6 +414,46 @@ class LessonViewSet(viewsets.ModelViewSet):
         return Lesson.objects.filter(chapter_id=self.kwargs["chapter_pk"]).order_by(
             "order"
         )
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        user = request.user
+        child_id = request.query_params.get("child_id")
+
+        cache_key = get_cache_key("lesson", user, child_id, id=instance.id)
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            print("Cache hit:", cache_key)
+            return Response(cached_data)
+
+        print("Cache miss")
+        serializer = self.serializer_class(
+            instance, context={"request": request, "child_id": child_id}
+        )
+        cache.set(cache_key, serializer.data, CACHE_TIMEOUT)
+        return Response(serializer.data)
+
+    def list(self, request, *args, **kwargs):
+        user = request.user
+        chapter_pk = self.kwargs["chapter_pk"]
+        child_id = request.query_params.get("child_id")
+
+        cache_key = get_cache_key("lessons", user, child_id, chapter=chapter_pk)
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            print("Cache hit", cache_key)
+            return Response(cached_data)
+
+        print("Cache miss")
+
+        queryset = self.get_queryset()
+
+        serializer = self.serializer_class(
+            queryset, many=True, context={"request": request, "child_id": child_id}
+        )
+
+        cache.set(cache_key, serializer.data, CACHE_TIMEOUT)
+        return Response(serializer.data)
 
     def create(self, request, course_pk=None, section_pk=None, chapter_pk=None):
         content_node = request.query_params.get("content-node") or request.data.get(
@@ -487,13 +573,44 @@ class TaskViewSet(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def list(self, request, *args, **kwargs):
+        user = request.user
+        chapter_pk = self.kwargs["chapter_pk"]
+        child_id = request.query_params.get("child_id")
+
+        cache_key = get_cache_key("tasks", user, child_id, chapter=chapter_pk)
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            print("Cache hit", cache_key)
+            return Response(cached_data)
+
+        print("Cache miss")
+
         queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
+
+        serializer = self.get_serializer(
+            queryset, many=True, context={"request": request, "child_id": child_id}
+        )
+
+        cache.set(cache_key, serializer.data, CACHE_TIMEOUT)
         return Response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        serializer = self.get_serializer(instance)
+        user = request.user
+        child_id = request.query_params.get("child_id")
+
+        cache_key = get_cache_key("task", user, child_id, id=instance.id)
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            print("Cache hit:", cache_key)
+            return Response(cached_data)
+
+        print("Cache miss")
+
+        serializer = self.get_serializer(
+            instance, context={"request": request, "child_id": child_id}
+        )
+        cache.set(cache_key, serializer.data, CACHE_TIMEOUT)
         return Response(serializer.data)
 
     def get_serializer_context(self):

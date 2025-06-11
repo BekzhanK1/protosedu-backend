@@ -27,6 +27,7 @@ class Course(models.Model):
         User, on_delete=models.SET_NULL, null=True, blank=True
     )
     language = models.CharField(max_length=50, choices=LANGUAGE_CHOICES, default="ru")
+    is_active = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["grade"]

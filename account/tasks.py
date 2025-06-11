@@ -373,6 +373,19 @@ def _invalidate_keys(user, child_id, course_id, prefix, item_id):
 
 
 @shared_task
+def delete_keys_matching(pattern="course*"):
+    try:
+        # Some versions of django-redis support delete_pattern
+        result = cache.delete_pattern(pattern)
+        print(f"Deleted keys matching pattern '{pattern}': {result}")
+    except AttributeError:
+        # Fallback to manual scanning
+        raise Exception(
+            "Your cache backend does not support delete_pattern. Please update your cache configuration."
+        )
+
+
+@shared_task
 def invalidate_user_cache(user_id):
     """
     Invalidate the cache for a specific user.

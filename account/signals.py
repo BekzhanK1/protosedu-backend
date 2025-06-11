@@ -3,7 +3,11 @@ from django.core.cache import cache
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 from account.models import Child, DailyMessage, Parent, Student
-from account.tasks import course_invalidate_cache, invalidate_user_cache
+from account.tasks import (
+    course_invalidate_cache,
+    invalidate_user_cache,
+    delete_keys_matching,
+)
 from subscription.models import Subscription
 from tasks.models import Chapter, Content, Course, Lesson, Section, Task, TaskCompletion
 
@@ -23,6 +27,12 @@ User = get_user_model()
 @receiver(post_delete, sender=User)
 def clear_user_cache(sender, instance, **kwargs):
     invalidate_user_cache.delay(instance.id)
+    patterns = [
+        f"courses_user_{instance.id}*",
+        f"course_user_{instance.id}*",
+    ]
+    for pattern in patterns:
+        delete_keys_matching.delay(pattern=pattern)
 
 
 @receiver(post_save, sender=Subscription)
@@ -62,80 +72,38 @@ def clear_child_cache(sender, instance, **kwargs):
 @receiver([post_save, post_delete], sender=Course)
 def invalidate_courses_cache(sender, instance, **kwargs):
     try:
-        course_invalidate_cache.delay(
-            instance.pk,
-            "course",
-            item_id=instance.pk,
-        )
+        print(f"Invalidating cache for course {instance.pk}")
+        delete_keys_matching.delay()
     except Exception as e:
         print(f"Exception in invalidate_courses_cache: {e}")
 
 
 @receiver([post_save, post_delete], sender=Section)
 def invalidate_sections_cache(sender, instance, **kwargs):
-    if instance.course:
-        course_invalidate_cache.delay(
-            instance.course.pk,
-            "course",
-            item_id=instance.course.pk,
-        )
-        course_invalidate_cache.delay(
-            instance.course.pk,
-            "section",
-            item_id=instance.pk,
-        )
+    delete_keys_matching.delay()
+    delete_keys_matching.delay(pattern="section*")
 
 
 @receiver([post_save, post_delete], sender=Chapter)
 def invalidate_chapters_cache(sender, instance, **kwargs):
-    section = instance.section
-    if section and section.course:
-        course_invalidate_cache.delay(
-            section.course.pk,
-            "section",
-            item_id=section.pk,
-        )
-        course_invalidate_cache.delay(
-            section.course.pk,
-            "chapter",
-            item_id=instance.pk,
-        )
+    delete_keys_matching.delay(pattern="section*")
+    delete_keys_matching.delay(pattern="chapter*")
 
 
 @receiver([post_save, post_delete], sender=Task)
 def invalidate_tasks_cache(sender, instance, **kwargs):
-    chapter = instance.chapter
-    section = chapter.section
-    course = section.course
-    if course:
-        course_invalidate_cache.delay(
-            course.pk,
-            "chapter",
-            item_id=chapter.pk,
-        )
-        course_invalidate_cache.delay(
-            course.pk,
-            "section",
-            item_id=section.pk,
-        )
+    delete_keys_matching.delay(pattern="content*")
+    delete_keys_matching.delay(pattern="chapter*")
+    delete_keys_matching.delay(pattern="section*")
+    delete_keys_matching.delay(pattern="task*")
 
 
 @receiver([post_save, post_delete], sender=Lesson)
 def invalidate_lessons_cache(sender, instance, **kwargs):
-    chapter = instance.chapter
-    section = chapter.section
-    course = section.course
-    if course:
-        course_invalidate_cache.delay(
-            course.pk,
-            "chapter",
-            item_id=chapter.pk,
-        )
-        course_invalidate_cache.delay(
-            course.pk,
-            "section",
-            item_id=section.pk,
-        )
+    delete_keys_matching.delay(pattern="content*")
+    delete_keys_matching.delay(pattern="chapter*")
+    delete_keys_matching.delay(pattern="section*")
+    delete_keys_matching.delay(pattern="lesson*")
 
 
 @receiver([post_save, pre_delete], sender=TaskCompletion)
@@ -149,35 +117,33 @@ def invalidate_task_completion_cache(sender, instance, **kwargs):
         return
 
     user_id = None
-    child_id = None
 
     try:
         if instance.user:
             user_id = instance.user.id
-        elif instance.child:
-            child_id = instance.child.id
-            if instance.child.parent and instance.child.parent.user:
-                user_id = instance.child.parent.user.id
     except Exception as e:
         print(f"[Signal] Error resolving user/child in TaskCompletion: {e}")
         # Optionally skip invalidation if critical data is missing
         return
 
-    for prefix, obj in [
-        ("course", course),
-        ("section", section),
-        ("chapter", chapter),
-    ]:
-        try:
-            course_invalidate_cache.delay(
-                course_id=course.pk,
-                prefix=prefix,
-                item_id=obj.pk,
-                user_id=user_id,
-                child_id=child_id,
-            )
-        except Exception as e:
-            print(f"[Signal] Error invalidating cache for {prefix}: {e}")
+    patterns = [
+        f"courses_user_{user_id}*",
+        f"course_user_{user_id}*",
+        f"sections_user_{user_id}*",
+        f"section_user_{user_id}*",
+        f"chapters_user_{user_id}*",
+        f"chapter_user_{user_id}*",
+        f"tasks_user_{user_id}*",
+        f"task_user_{user_id}*",
+        f"lessons_user_{user_id}*",
+        f"lesson_user_{user_id}*",
+        f"content_user_{user_id}*",
+        f"contents_user_{user_id}*",
+    ]
+
+    for pattern in patterns:
+        print(f"Invalidating cache for pattern: {pattern}")
+        delete_keys_matching.delay(pattern=pattern)
 
 
 @receiver([post_save, post_delete], sender=DailyMessage)

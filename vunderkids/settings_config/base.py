@@ -86,28 +86,39 @@ else:
 if CACHE_STAGE == "docker":
     CACHES = {
         "default": {
-            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": "redis://redis:6379/1",
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
         }
     }
 
 elif CACHE_STAGE == "localhost":
     CACHES = {
         "default": {
-            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": "redis://localhost:6379/1",
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
         }
     }
+
 elif CACHE_STAGE == "local":
     CACHES = {
         "default": {
-            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": "redis://redis:6379/1",
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
         }
     }
+
 else:
     raise SystemError(
-        "CACHE_STAGE must be either 'docker' or 'local'. Please check your .env file."
+        "CACHE_STAGE must be either 'docker', 'localhost', or 'local'. Please check your .env file."
     )
 
 
