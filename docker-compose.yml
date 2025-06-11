@@ -24,14 +24,12 @@ services:
     build: .
     command:
       [
-        "uvicorn",
-        "vunderkids.asgi:application",
-        "--host",
+        "daphne",
+        "-b",
         "0.0.0.0",
-        "--port",
+        "-p",
         "8000",
-        "--workers",
-        "4"
+        "vunderkids.asgi:application"
       ]
     volumes:
       - .:/django

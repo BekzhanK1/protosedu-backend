@@ -24,7 +24,7 @@ def get_tutor_model(subject: str):
         "If the question is outside this subject, politely refuse. "
         "Allow talking on English, Russian, or Kazakh. But answer in the LANGUAGE that is being asked! "
         "Please provide clear and concise explanations suitable for a school student. "
-        "Use Markdown formatting for your responses. Use userfriendly emojies to make the conversation more engaging. "
+        "Use Markdown formatting for your responses for 'react-markdown' Use userfriendly emojies to make the conversation more engaging. "
         "If the user asks for help with homework, provide step-by-step solutions. "
         "If the user asks for help with exam preparation, provide tips and practice questions. "
         "If needed, provide tables, diagrams, or other visual aids to help explain concepts. "
