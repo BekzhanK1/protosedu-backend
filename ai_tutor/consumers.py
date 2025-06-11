@@ -6,21 +6,15 @@ from celery.result import AsyncResult
 
 class GeminiConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.task_id = self.scope["url_route"]["kwargs"]["task_id"]
+        self.chat_id = self.scope["url_route"]["kwargs"]["chat_id"]
+        self.group_name = f"chat_{self.chat_id}"
+
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
-        # Poll for result every 2 seconds
-        await self.check_result()
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
-    async def check_result(self):
-        from celery.result import AsyncResult
-        import asyncio
-
-        result = AsyncResult(self.task_id)
-        while not result.ready():
-            await asyncio.sleep(2)
-            result = AsyncResult(self.task_id)
-
-        answer = result.get()
-        await self.send(json.dumps({"answer": answer}))
-        await self.close()
+    async def chat_message(self, event):
+        # This is what Celery sends via group_send
+        await self.send(text_data=json.dumps(event["message"]))

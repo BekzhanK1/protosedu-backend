@@ -13,7 +13,8 @@ class PlanAdmin(admin.ModelAdmin):
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
     list_display = ("user", "plan", "start_date", "end_date", "is_active")
-    search_fields = ("user__email", "plan__duration")
+    search_fields = ("user__email", "plan__duration", "user__username")
+    ordering = ("-start_date",)
     list_filter = ("plan__duration", "start_date", "end_date")
     raw_id_fields = ("user", "plan")
 

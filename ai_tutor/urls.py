@@ -1,7 +1,16 @@
 from django.urls import path
-from .views import ask_question
-
+from .views import ChatSessionListCreateView, ChatMessageListView, ChatMessageCreateView
 
 urlpatterns = [
-    path("ask/", ask_question, name="ask_question"),
+    path("sessions/", ChatSessionListCreateView.as_view(), name="chat-list-create"),
+    path(
+        "sessions/<int:chat_id>/messages/",
+        ChatMessageListView.as_view(),
+        name="chat-messages",
+    ),
+    path(
+        "sessions/<int:chat_id>/send/",
+        ChatMessageCreateView.as_view(),
+        name="chat-send",
+    ),
 ]

@@ -1,5 +1,5 @@
 run:
-	python3 manage.py runserver 0.0.0.0:9000
+	uvicorn vunderkids.asgi:application --host 0.0.0.0 --port 9000 --reload
 
 makemigrations:
 	python3 manage.py makemigrations
