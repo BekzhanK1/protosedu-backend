@@ -20,6 +20,18 @@ class ChatSessionListCreateView(generics.ListCreateAPIView):
         serializer.save(user=self.request.user)
 
 
+class ChatSessionDeleteView(generics.DestroyAPIView):
+    serializer_class = ChatSessionSerializer
+    permission_classes = [IsAuthenticated, HasSubscription | IsSuperUser]
+
+    def get_queryset(self):
+        return ChatSession.objects.filter(user=self.request.user)
+
+    def perform_destroy(self, instance):
+        # Optionally, you can handle any cleanup here
+        instance.delete()
+
+
 class ChatMessageListView(generics.ListAPIView):
     serializer_class = ChatMessageSerializer
     permission_classes = [IsAuthenticated, HasSubscription | IsSuperUser]
