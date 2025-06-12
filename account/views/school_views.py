@@ -260,8 +260,12 @@ class SchoolViewSet(viewsets.ModelViewSet):
 
         def load_clean_sheet(sheet_name):
             try:
+                print(f"Reading sheet: {sheet_name}")
                 df = pd.read_excel(xls, sheet_name=sheet_name, skiprows=1)
+                print("Initial DataFrame loaded:")
+                print(df.head())
 
+                df = df.iloc[:, :5]
                 df.columns = [
                     "№",
                     "Оқушының аты-жөні",
@@ -269,19 +273,41 @@ class SchoolViewSet(viewsets.ModelViewSet):
                     "Литер",
                     "Ата-анасының электронды почтасы",
                 ]
+                print("Columns renamed:")
+                print(df.columns)
+
+                print("Splitting 'Оқушының аты-жөні' into 'Жөні' and 'Аты'")
                 df[["Жөні", "Аты"]] = df["Оқушының аты-жөні"].str.split(
                     n=2, expand=True
                 )[[0, 1]]
-                df = df.drop(columns=["№"])
-                df = df.dropna(subset=["Оқушының аты-жөні"])
-                df = df.dropna(subset=["Параллель"])
-                df = df.dropna(subset=["Литер"])
-                df = df.dropna(subset=["Ата-анасының электронды почтасы"])
-                df = df[~df["Оқушының аты-жөні"].isin(names_to_drop)]
-                df = df.drop(columns=["Оқушының аты-жөні"])
+                print(df[["Жөні", "Аты"]].head())
 
-                students = [
-                    {
+                df = df.drop(columns=["№"])
+                print("'№' column dropped")
+
+                df = df.dropna(subset=["Оқушының аты-жөні"])
+                print("Dropped rows with NaN in 'Оқушының аты-жөні'")
+
+                df = df.dropna(subset=["Параллель"])
+                print("Dropped rows with NaN in 'Параллель'")
+
+                df = df.dropna(subset=["Литер"])
+                print("Dropped rows with NaN in 'Литер'")
+
+                df = df.dropna(subset=["Ата-анасының электронды почтасы"])
+                print("Dropped rows with NaN in 'Ата-анасының электронды почтасы'")
+
+                df = df[~df["Оқушының аты-жөні"].isin(names_to_drop)]
+                print("Filtered out names in 'names_to_drop'")
+
+                df = df.drop(columns=["Оқушының аты-жөні"])
+                print("'Оқушының аты-жөні' column dropped")
+
+                students = []
+                print("Beginning to process each row")
+                for _, row in df.iterrows():
+                    print("Processing row:", row)
+                    student = {
                         "first_name": (
                             row["Аты"].strip()
                             if pd.notna(row["Аты"]) and row["Аты"].strip()
@@ -307,8 +333,8 @@ class SchoolViewSet(viewsets.ModelViewSet):
                             else None
                         ),
                     }
-                    for _, row in df.iterrows()
-                ]
+                    print("Processed student:", student)
+                    students.append(student)
 
             except Exception as e:
                 print("2", e)
