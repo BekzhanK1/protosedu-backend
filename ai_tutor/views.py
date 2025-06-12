@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from .models import ChatSession, ChatMessage
 from .serializers import ChatSessionSerializer, ChatMessageSerializer
 from django.shortcuts import get_object_or_404
-from .tasks import generate_gemini_answer
+from .tasks import generate_openai_answer
 from django.db import transaction
 
 
@@ -59,7 +59,7 @@ class ChatMessageCreateView(APIView):
                 chat=chat, role="user", content=content
             )
 
-        generate_gemini_answer.delay(
+        generate_openai_answer.delay(
             chat.subject, content, chat.id, request.user.id, user_msg.id
         )
 
