@@ -89,6 +89,7 @@ class ShortTestSerializer(serializers.ModelSerializer):
 
     def get_is_finished(self, obj):
         user = self.context.get("request").user
+        # print(user)
         if user is None:
             return False
         if user.is_parent:

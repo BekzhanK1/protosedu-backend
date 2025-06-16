@@ -10,6 +10,7 @@ from account.tasks import (
 )
 from subscription.models import Subscription
 from tasks.models import Chapter, Content, Course, Lesson, Section, Task, TaskCompletion
+from modo.models import TestResult
 
 
 User = get_user_model()
@@ -104,6 +105,12 @@ def invalidate_lessons_cache(sender, instance, **kwargs):
     delete_keys_matching.delay(pattern="chapter*")
     delete_keys_matching.delay(pattern="section*")
     delete_keys_matching.delay(pattern="lesson*")
+
+
+@receiver([post_save, post_delete], sender=TestResult)
+def invalidate_tests_cache_modo(sender, instance, **kwargs):
+    delete_keys_matching.delay(pattern="section*")
+    delete_keys_matching.delay(pattern="chapter*")
 
 
 @receiver([post_save, pre_delete], sender=TaskCompletion)
