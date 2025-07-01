@@ -1,5 +1,13 @@
 from rest_framework import serializers
-from .models import Test, Question, Content, AnswerOption, TestAnswer, TestResult
+from .models import (
+    Test,
+    Question,
+    Content,
+    AnswerOption,
+    TestAnswer,
+    TestCategory,
+    TestResult,
+)
 from drf_spectacular.utils import extend_schema_field
 
 
@@ -507,3 +515,17 @@ class FullTestUpdateSerializer(serializers.ModelSerializer):
         # instance.questions.exclude(id__in=seen_question_ids).delete()
 
         return instance
+
+
+class TestCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TestCategory
+        fields = [
+            "id",
+            "name",
+            "is_mandatory",
+            "is_profile",
+            "language",
+            "test_type",
+            "image",
+        ]

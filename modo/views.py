@@ -5,10 +5,20 @@ from drf_spectacular.utils import extend_schema
 from pprint import pprint
 
 from account.models import Child, User
-from .models import TestAnswer, Test, Question, Content, AnswerOption, TestResult
+from .models import (
+    TestAnswer,
+    Test,
+    Question,
+    Content,
+    AnswerOption,
+    TestResult,
+    TestCategory,
+    TEST_TYPE,
+)
 from .serializers import (
     FullTestCreateSerializer,
     FullTestUpdateSerializer,
+    TestCategorySerializer,
     TestResultSerializer,
     TestSerializer,
     TestQuestionSerializer,
@@ -26,6 +36,7 @@ from django.db import transaction
 
 MAX_ANSWER_OPTIONS = 8
 MAX_CONTENTS = 8
+VALID_TEST_TYPES = [choice[0] for choice in TEST_TYPE]
 
 
 class TestViewSet(viewsets.ModelViewSet):
@@ -68,6 +79,20 @@ class TestViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
+
+        category_id = request.query_params.get("category_id")
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+
+        test_type = request.query_params.get("test_type")
+        if test_type:
+            if test_type not in VALID_TEST_TYPES:
+                return Response(
+                    {"error": f"test_type `{test_type}` is not in {VALID_TEST_TYPES}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            queryset = queryset.filter(test_type=test_type)
+
         child_id = request.query_params.get("child_id")
         serializer = self.get_serializer(
             queryset, context={"request": self.request, "child_id": child_id}, many=True
@@ -349,3 +374,17 @@ class TestReviewAPIView(APIView):
 
         serializer = TestResultSerializer(test_result, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class TestCategoryViewSet(viewsets.ModelViewSet):
+    """
+    Viewset for managing TestCategory objects.
+    """
+
+    queryset = TestCategory.objects.all()
+    serializer_class = TestCategorySerializer
+    permission_classes = [IsSuperUserOrStaffOrReadOnly]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["name"]
+    ordering_fields = ["name"]
+    ordering = ["name"]

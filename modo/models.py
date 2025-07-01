@@ -1,10 +1,13 @@
 from django.db import models
 from django.db.models import Q, UniqueConstraint
+from account.models import LANGUAGE_CHOICES
+from modo.utils import get_language_display_name
 
 TEST_TYPE = [
     ("modo", "MODO"),
     ("ent", "ENT"),
     ("diagnostic", "Diagnostic"),
+    ("pisa", "PISA"),
     ("other", "Other"),
 ]
 
@@ -14,12 +17,37 @@ CONTENT_TYPE = [
 ]
 
 
+class TestCategory(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    is_mandatory = models.BooleanField(default=False)
+    is_profile = models.BooleanField(default=False)
+    language = models.CharField(max_length=10, choices=LANGUAGE_CHOICES, default="ru")
+    test_type = models.CharField(
+        max_length=20, choices=TEST_TYPE, default="modo", blank=True, null=True
+    )
+    image = models.ImageField(
+        upload_to="test_categories/images/",
+        blank=True,
+        null=True,
+    )
+
+    def __str__(self):
+        return f"{self.name} | {get_language_display_name(self.language)} | {self.test_type}"
+
+
 class Test(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     order = models.IntegerField(default=0)
     test_type = models.CharField(max_length=20, choices=TEST_TYPE, default="modo")
     shuffle_questions = models.BooleanField(default=False)
+    category = models.ForeignKey(
+        TestCategory,
+        related_name="tests",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         ordering = ["order"]

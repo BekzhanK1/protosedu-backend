@@ -99,3 +99,15 @@ def clean_parsed_data(data):
 
     else:
         return data
+
+
+def get_language_display_name(language_code):
+    """
+    Get the display name for a language code.
+    """
+    language_names = {
+        "en": "English",
+        "kz": "Kazakh",
+        "ru": "Russian",
+    }
+    return language_names.get(language_code, language_code.upper())
