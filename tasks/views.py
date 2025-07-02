@@ -460,11 +460,11 @@ class LessonViewSet(viewsets.ModelViewSet):
             "content-node"
         )
 
-        if not content_node:
-            return Response(
-                {"message": "Content node is required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        # if not content_node:
+        #     return Response(
+        #         {"message": "Content node is required."},
+        #         status=status.HTTP_400_BAD_REQUEST,
+        #     )
 
         data = request.data.copy()
         if isinstance(data, list):
@@ -534,11 +534,11 @@ class TaskViewSet(viewsets.ModelViewSet):
             "content-node"
         )
 
-        if not content_node:
-            return Response(
-                {"message": "Content node is required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        # if not content_node:
+        #     return Response(
+        #         {"message": "Content node is required."},
+        #         status=status.HTTP_400_BAD_REQUEST,
+        #     )
 
         data = request.data.copy()
         if isinstance(data, list):
