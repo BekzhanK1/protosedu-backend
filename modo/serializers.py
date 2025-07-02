@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db import transaction
 from .models import (
     Test,
     Question,
@@ -71,6 +72,132 @@ class TestQuestionSerializer(serializers.ModelSerializer):
             AnswerOption.objects.create(
                 question=instance, text=answer["text"], is_correct=answer["is_correct"]
             )
+
+
+class SingleTestQuestionSerializer(serializers.ModelSerializer):
+    answer_options = AnswerOptionSerializer(many=True, read_only=True)
+    contents = ContentSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Question
+        fields = "__all__"
+
+    def create(self, validated_data):
+        """Create a new question with its contents and answer options"""
+        contents_data = self.context["request"].data.get("contents", [])
+        answer_options_data = self.context["request"].data.get("answer_options", [])
+
+        return self._save_question_with_relations(
+            validated_data, contents_data, answer_options_data
+        )
+
+    def update(self, instance, validated_data):
+        """Update existing question and replace its contents and answer options"""
+        contents_data = self.context["request"].data.get("contents", [])
+        answer_options_data = self.context["request"].data.get("answer_options", [])
+
+        # Update the question fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        return self._save_question_with_relations(
+            validated_data, contents_data, answer_options_data, instance
+        )
+
+    def _save_question_with_relations(
+        self, validated_data, contents_data, answer_options_data, instance=None
+    ):
+        """Helper method to save question with its related objects"""
+        with transaction.atomic():
+            if instance is None:
+                instance = Question.objects.create(**validated_data)
+            else:
+                instance.save()
+                instance.contents.all().delete()
+                instance.answer_options.all().delete()
+
+            if not isinstance(contents_data, list):
+                raise serializers.ValidationError("Contents must be a list.")
+
+            for i, content_data in enumerate(contents_data):
+                content_type = content_data.get("content_type", "text")
+
+                if content_type not in ["text", "image"]:
+                    raise serializers.ValidationError(
+                        f"Unsupported content type: {content_type}"
+                    )
+
+                content_kwargs = {
+                    "question": instance,
+                    "content_type": content_type,
+                    "order": content_data.get("order", i),
+                }
+
+                if content_type == "text":
+                    text_value = content_data.get("text")
+                    if not text_value:
+                        raise serializers.ValidationError(
+                            "Text content cannot be empty."
+                        )
+                    content_kwargs["text"] = text_value
+                elif content_type == "image":
+                    image_value = content_data.get("image")
+                    if not image_value:
+                        raise serializers.ValidationError(
+                            "Image content cannot be empty."
+                        )
+                    content_kwargs["image"] = image_value
+
+                Content.objects.create(**content_kwargs)
+
+            if not isinstance(answer_options_data, list):
+                raise serializers.ValidationError("Answer options must be a list.")
+
+            if len(answer_options_data) == 0:
+                raise serializers.ValidationError(
+                    "At least one answer option is required."
+                )
+
+            has_correct_answer = any(
+                answer.get("is_correct", False) for answer in answer_options_data
+            )
+            if not has_correct_answer:
+                raise serializers.ValidationError(
+                    "At least one answer option must be marked as correct."
+                )
+
+            for answer_data in answer_options_data:
+                option_type = answer_data.get("option_type", "text")
+
+                if option_type not in ["text", "image"]:
+                    raise serializers.ValidationError(
+                        f"Unsupported option type: {option_type}"
+                    )
+
+                answer_kwargs = {
+                    "question": instance,
+                    "is_correct": answer_data.get("is_correct", False),
+                    "option_type": option_type,
+                }
+
+                if option_type == "text":
+                    text_value = answer_data.get("text")
+                    if not text_value:
+                        raise serializers.ValidationError(
+                            "Text answer option cannot be empty."
+                        )
+                    answer_kwargs["text"] = text_value
+                elif option_type == "image":
+                    image_value = answer_data.get("image")
+                    if not image_value:
+                        raise serializers.ValidationError(
+                            "Image answer option cannot be empty."
+                        )
+                    answer_kwargs["image"] = image_value
+
+                AnswerOption.objects.create(**answer_kwargs)
+
+            return instance
 
 
 class ShortTestSerializer(serializers.ModelSerializer):

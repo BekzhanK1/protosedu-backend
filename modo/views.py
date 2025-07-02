@@ -18,6 +18,7 @@ from .models import (
 from .serializers import (
     FullTestCreateSerializer,
     FullTestUpdateSerializer,
+    SingleTestQuestionSerializer,
     TestCategorySerializer,
     TestResultSerializer,
     TestSerializer,
@@ -110,7 +111,7 @@ class TestViewSet(viewsets.ModelViewSet):
 
 class QuestionViewSet(viewsets.ModelViewSet):
     queryset = Question.objects.all()
-    serializer_class = TestQuestionSerializer
+    serializer_class = SingleTestQuestionSerializer
     permission_classes = [IsSuperUserOrStaffOrReadOnly]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["title"]
