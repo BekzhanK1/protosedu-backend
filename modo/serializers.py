@@ -95,7 +95,8 @@ class SingleTestQuestionSerializer(serializers.ModelSerializer):
         """Update existing question and replace its contents and answer options"""
         contents_data = self.context["request"].data.get("contents", [])
         answer_options_data = self.context["request"].data.get("answer_options", [])
-
+        print(self.context["request"].data)
+        print(contents_data, answer_options_data)
         # Update the question fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
@@ -108,6 +109,7 @@ class SingleTestQuestionSerializer(serializers.ModelSerializer):
         self, validated_data, contents_data, answer_options_data, instance=None
     ):
         """Helper method to save question with its related objects"""
+        print(answer_options_data)
         with transaction.atomic():
             if instance is None:
                 instance = Question.objects.create(**validated_data)
@@ -430,7 +432,7 @@ class FullQuestionCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         contents_data = validated_data.pop("contents", [])
         answers_data = validated_data.pop("answer_options", [])
-        test = self.context["test"]
+        test = self.context.get("test")
 
         question = Question.objects.create(test=test, **validated_data)
 
@@ -479,9 +481,15 @@ class FullTestCreateSerializer(serializers.ModelSerializer):
 
         return test
 
+class ImageOrURLField(serializers.ImageField):
+    def to_internal_value(self, data):
+        if isinstance(data, str) and data.startswith(("http://", "https://")):
+            return data
+        return super().to_internal_value(data)
 
 class FullAnswerOptionUpdateSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
+    image = ImageOrURLField(required=False, allow_null=True)
 
     class Meta:
         model = AnswerOption
@@ -490,6 +498,7 @@ class FullAnswerOptionUpdateSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+        print(validated_data)
         instance.save()
         return instance
 

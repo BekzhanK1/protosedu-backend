@@ -25,6 +25,8 @@ from .serializers import (
     TestQuestionSerializer,
     ContentSerializer,
     AnswerOptionSerializer,
+    FullQuestionCreateSerializer,
+    FullQuestionUpdateSerializer
 )
 from account.permissions import IsParent, IsStudent, IsSuperUserOrStaffOrReadOnly
 from rest_framework.exceptions import ValidationError
@@ -124,6 +126,49 @@ class QuestionViewSet(viewsets.ModelViewSet):
             raise ValidationError({"detail": "Parameter 'test_id' is required."})
         queryset = super().get_queryset().filter(test_id=test_id)
         return queryset
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="create-full",
+        url_name="create_full",
+        permission_classes=[IsSuperUserOrStaffOrReadOnly],
+    )
+    def create_full(self, request, *args, **kwargs):
+        parsed_data = parse_nested_form_data(request.data, request.FILES)
+        cleaned_data = clean_parsed_data(parsed_data)
+        print(parsed_data, cleaned_data)
+        question_test = Test.objects.get(pk=cleaned_data['test'])
+        serializer = FullQuestionCreateSerializer(data=cleaned_data, context={'test': question_test})
+        print(serializer.is_valid(), serializer.errors)
+        serializer.is_valid(raise_exception=True)
+        test = serializer.save()
+        return Response(
+            TestQuestionSerializer(test, context={"request": request}).data, status=201
+        )
+    
+    @action(
+        detail=True,
+        methods=["patch"],
+        url_path="update-full",
+        url_name="update_full",
+        permission_classes=[IsSuperUserOrStaffOrReadOnly],
+    )
+    def update_full(self, request, pk, *args, **kwargs):
+        parsed_data = parse_nested_form_data(request.data, request.FILES)
+        cleaned_data = clean_parsed_data(parsed_data)
+        print(parsed_data, cleaned_data)
+        question_test = Test.objects.get(pk=cleaned_data['test'])
+        question = Question.objects.get(pk=pk)
+
+        serializer = FullQuestionUpdateSerializer(question, data=cleaned_data, context={'test': question_test})
+        print(serializer.is_valid(), serializer.errors)
+        serializer.is_valid(raise_exception=True)
+        test = serializer.save()
+        return Response(
+            TestQuestionSerializer(test, context={"request": request}).data, status=201
+        )
+
 
 
 class ContentViewSet(viewsets.ModelViewSet):
