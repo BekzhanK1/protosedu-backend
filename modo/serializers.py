@@ -501,6 +501,8 @@ class FullAnswerOptionUpdateSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         for attr, value in validated_data.items():
+            if attr=="image" and "storage.yandexcloud.kz/protosedu" in value:
+                continue
             setattr(instance, attr, value)
         print(validated_data)
         instance.save()
