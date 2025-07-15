@@ -69,6 +69,8 @@ class Question(models.Model):
         max_length=10,
         choices=QUESTION_TYPE_CHOICES,
         default="mcq",
+        null=True,
+        blank=True,
     )
     correct_answer = models.TextField(blank=True, null=True)
 
