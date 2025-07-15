@@ -61,6 +61,17 @@ class Question(models.Model):
     title = models.TextField()
     order = models.IntegerField(default=0)
 
+    QUESTION_TYPE_CHOICES = [
+        ("mcq", "Multiple Choice"),
+        ("open", "Open"),
+    ]
+    type = models.CharField(
+        max_length=10,
+        choices=QUESTION_TYPE_CHOICES,
+        default="mcq",
+    )
+    correct_answer = models.TextField(blank=True, null=True)
+
     class Meta:
         ordering = ["order"]
 

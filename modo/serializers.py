@@ -562,7 +562,7 @@ class FullQuestionUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Question
-        fields = ["id", "title", "order", "contents", "answer_options"]
+        fields = ["id", "title", "order", "contents", "answer_options", "type", "correct_answer"]
 
     def update(self, instance, validated_data):
         contents_data = validated_data.pop("contents", [])
