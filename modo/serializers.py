@@ -434,6 +434,9 @@ class FullQuestionCreateSerializer(serializers.ModelSerializer):
         answers_data = validated_data.pop("answer_options", [])
         test = self.context.get("test")
 
+        if 'order' not in validated_data:
+            order = len(test.questions.all())+1
+            validated_data['order'] = order
         question = Question.objects.create(test=test, **validated_data)
 
         if contents_data:
@@ -459,6 +462,7 @@ class FullTestCreateSerializer(serializers.ModelSerializer):
             "test_type",
             "order",
             "questions",
+            "category"
         ]
 
     def create(self, validated_data):
