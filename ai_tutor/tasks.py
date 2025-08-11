@@ -2,7 +2,7 @@ import concurrent
 from .models import ChatSession, ChatMessage
 from .openai_model import get_tutor_model
 from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
+# from channels.layers import get_channel_layer
 from celery import shared_task
 from django.db import transaction
 
@@ -107,20 +107,20 @@ def generate_openai_answer(subject, question, chat_id, user_id, user_msg_id):
         print(f"💾 Saved assistant message {assistant_msg.id}")
 
         # Send to WebSocket
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            f"chat_{chat.id}",
-            {
-                "type": "chat.message",
-                "message": {
-                    "id": assistant_msg.id,
-                    "role": assistant_msg.role,
-                    "content": assistant_msg.content,
-                    "created_at": assistant_msg.created_at.isoformat(),
-                    "in_response_to": user_msg_id,
-                },
-            },
-        )
+        # channel_layer = get_channel_layer()
+        # async_to_sync(channel_layer.group_send)(
+        #     f"chat_{chat.id}",
+        #     {
+        #         "type": "chat.message",
+        #         "message": {
+        #             "id": assistant_msg.id,
+        #             "role": assistant_msg.role,
+        #             "content": assistant_msg.content,
+        #             "created_at": assistant_msg.created_at.isoformat(),
+        #             "in_response_to": user_msg_id,
+        #         },
+        #     },
+        # )
 
         print(f"📡 Sent to WebSocket for chat {chat.id}")
         return answer
@@ -128,17 +128,17 @@ def generate_openai_answer(subject, question, chat_id, user_id, user_msg_id):
     except Exception as e:
         print(f"❌ Database/WebSocket error: {e}")
         # Try to send error message to frontend
-        try:
-            channel_layer = get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                f"chat_{chat.id}",
-                {
-                    "type": "chat.error",
-                    "error": "Failed to save response. Please try again.",
-                    "in_response_to": user_msg_id,
-                },
-            )
-        except:
-            pass
+        # try:
+        #     channel_layer = get_channel_layer()
+        #     async_to_sync(channel_layer.group_send)(
+        #         f"chat_{chat.id}",
+        #         {
+        #             "type": "chat.error",
+        #             "error": "Failed to save response. Please try again.",
+        #             "in_response_to": user_msg_id,
+        #         },
+        #     )
+        # except:
+        #     pass
 
         return None

@@ -526,6 +526,7 @@ class FullAnswerOptionUpdateSerializer(serializers.ModelSerializer):
 
 class FullContentUpdateSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
+    image = ImageOrURLField(required=False, allow_null=True)
 
     class Meta:
         model = Content
@@ -533,6 +534,8 @@ class FullContentUpdateSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         for attr, value in validated_data.items():
+            if attr=="image" and "storage.yandexcloud.kz/protosedu" in value:
+                continue
             setattr(instance, attr, value)
         instance.save()
         return instance

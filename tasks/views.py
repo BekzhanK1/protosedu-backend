@@ -338,13 +338,15 @@ class ContentViewSet(viewsets.ModelViewSet):
     def update_contents(
         self, request, course_pk=None, section_pk=None, chapter_pk=None
     ):
+        user = request.user
+        child_id = request.query_params.get("child_id")
         contents_data = request.data.get("contents")
         if not contents_data:
             return Response(
                 {"detail": "Contents data is missing."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
+        
         try:
             with transaction.atomic():
 
@@ -369,6 +371,14 @@ class ContentViewSet(viewsets.ModelViewSet):
                     contents.values(),
                     ["order", "title", "description"],
                 )
+
+                cache_key = get_cache_key("contents", user, child_id, chapter=chapter_pk)
+                queryset = self.get_queryset()
+
+                serializer = self.serializer_class(
+                    queryset, many=True, context={"request": request, "child_id": child_id}
+                )
+                cache.set(cache_key, serializer.data, CACHE_TIMEOUT)
 
             return Response(
                 {"detail": "Contents updated successfully."}, status=status.HTTP_200_OK
