@@ -3,6 +3,8 @@ from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from drf_spectacular.utils import extend_schema
 from pprint import pprint
+from django.shortcuts import get_object_or_404
+from django.db import transaction
 
 from account.models import Child, User
 from .models import (
@@ -30,12 +32,10 @@ from .serializers import (
 )
 from account.permissions import IsParent, IsStudent, IsSuperUserOrStaffOrReadOnly
 from rest_framework.exceptions import ValidationError
-from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from .utils import clean_parsed_data, parse_nested_form_data
 
 from rest_framework.response import Response
-from django.db import transaction
 
 MAX_ANSWER_OPTIONS = 8
 MAX_CONTENTS = 8
@@ -79,6 +79,66 @@ class TestViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         test = serializer.save()
         return Response(TestSerializer(test, context={"request": request}).data)
+
+    @action(detail=False, methods=["patch"], url_path="update-test-order")
+    def update_test_order(self, request, *args, **kwargs):
+        """
+        Метод для изменения порядка тестов в одной категории.
+        Все тесты должны принадлежать одной категории.
+        Принимает список тестов в формате: {
+            "category_id": 1,
+            "tests": [
+                {"id": 1, "order": 1},
+                {"id": 2, "order": 2},
+            ]
+        }
+        """
+        try:
+            order_data = request.data
+            category_id = request.query_params.get("category_id")
+            
+            if not category_id:
+                return Response(
+                    {"error": "category_id parameter is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # все тесты должны принадлежать одной категории
+            test_ids = [item.get("id") for item in order_data if item.get("id")]
+            if test_ids:
+                tests_in_category = Test.objects.filter(
+                    id__in=test_ids, 
+                    category_id=category_id
+                ).count()
+                
+                if tests_in_category != len(test_ids):
+                    return Response(
+                        {"error": "All tests must belong to the specified category"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            with transaction.atomic():
+                for item in order_data:
+                    test_id = item.get("id")
+                    new_order = item.get("order")
+
+                    if not test_id or new_order is None:
+                        return Response(
+                            {"error": "ID and new order are required"},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                    test = get_object_or_404(Test, id=int(test_id), category_id=category_id)
+                    test.order = new_order
+                    test.save()
+
+            return Response(
+                {"message": "Test order updated successfully within category"}, status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
